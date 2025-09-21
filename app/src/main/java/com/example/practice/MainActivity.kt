@@ -1,5 +1,6 @@
 package com.example.practice
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.enableEdgeToEdge
@@ -11,45 +12,38 @@ import java.util.Random
 import java.util.Timer // Timer를 사용하려면 java.util.Timer를 임포트해야 합니다.
 import kotlin.concurrent.timer // kotlin.concurrent.timer를 사용하려면 임포트해야 합니다.
 import kotlin.math.abs
-import kotlin.*
+import kotlin.collections.*
+import kotlin.collections.minus
+import kotlin.inc
+import kotlin.text.toFloat
 
 class MainActivity : AppCompatActivity() {
 
-    // UI 요소들을 클래스 레벨 변수로 선언하여 onCreate 및 다른 함수에서 접근 가능하도록 합니다.
-    private lateinit var tv: TextView
-    private lateinit var tv_t: TextView
-    private lateinit var btn: Button
-    private lateinit var tv_p: TextView
-    private lateinit var tv_ps: TextView
+    var p_num = 3
+    var k = 1
+    val point_list = mutableListOf<Float>()
 
-    private var timerTask: Timer? = null
-    private var sec: Int = 0
-    private var stage = 1
-    private var point_list = MutableListOf<Float>()
-    private var person = 1
-    private var num: Int = 0 // num도 클래스 레벨 변수로 선언
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+    fun main() {
         setContentView(R.layout.activity_main) // setContentView를 가장 먼저 호출하는 것이 일반적입니다.
 
-        // UI 요소 초기화
-        tv = findViewById(R.id.tv_random)
-        tv_t = findViewById(R.id.tv_timer)
-        btn = findViewById(R.id.btn_main)
-        tv_p = findViewById(R.id.tv_point)
-        tv_ps = findViewById(R.id.tv_person)
-
+        // UI 요소들을 클래스 레벨 변수로 선언하여 onCreate 및 다른 함수에서 접근 가능하도록 합니다.
+        var timerTask: Timer? = null
+        var sec: Int = 0
+        var stage = 1
+        val tv: TextView = findViewById(R.id.tv_random)
+        val tv_t: TextView = findViewById(R.id.tv_timer)
+        val btn: Button = findViewById(R.id.btn_main)
+        val tv_p: TextView = findViewById(R.id.tv_point)
+        val tv_people: TextView = findViewById(R.id.tv_people)
         val random_box = Random()
-        num = random_box.nextInt(1001) // num 초기화
+        val num = random_box.nextInt(1001) // num 초기화
 
         tv.text = (num.toFloat() / 100).toString()
         btn.text = "시작"
+        tv_people.text = "참가자 $k"
 
         btn.setOnClickListener {
             stage++
-            tv_ps.text = "참가자 $person"
             if (stage == 2) {
                 timerTask = timer(period = 10) { // kotlin.concurrent.timer 사용
                     sec++
@@ -61,23 +55,26 @@ class MainActivity : AppCompatActivity() {
             } else if (stage == 3) {
                 timerTask?.cancel()
                 val point = abs(sec - num).toFloat() / 100
+                point_list.add(point)
                 tv_p.text = point.toString()
                 btn.text = "다음으로 "
-                person ++
-
-                point_list.add(point)
-                // stage를 다시 1로 리셋하거나, 다음 단계로 넘어가는 로직을 추가할 수 있습니다.
-                // 예: stage = 1; sec = 0; num = random_box.nextInt(1001); tv.text = (num.toFloat() / 100).toString(); tv_t.text = "0.0"; tv_p.text = ""; btn.text = "시작";
-            } else if (stage > 3) { // "다음으로" 버튼 클릭 후 초기화 (예시)
-                stage = 1
-                sec = 0
-                num = random_box.nextInt(1001)
-                tv.text = (num.toFloat() / 100).toString()
-                tv_t.text = "0.0" // 타이머 텍스트 초기화
-                tv_p.text = ""    // 포인트 텍스트 초기화
-                btn.text = "시작"
+                stage = 0
+            } else if (stage == 1) { // "다음으로" 버튼 클릭 후 초기화 (예시)
+                if(k < p_num){
+                    k++
+                    main()
+                }
+            } else {
+                println(point_list)
             }
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        main()
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
