@@ -1,6 +1,5 @@
 package com.example.practice
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.enableEdgeToEdge
@@ -13,15 +12,38 @@ import java.util.Timer // Timer를 사용하려면 java.util.Timer를 임포트�
 import kotlin.concurrent.timer // kotlin.concurrent.timer를 사용하려면 임포트해야 합니다.
 import kotlin.math.abs
 import kotlin.collections.*
-import kotlin.collections.minus
-import kotlin.inc
-import kotlin.text.toFloat
 
 class MainActivity : AppCompatActivity() {
-
     var p_num = 3
     var k = 1
     val point_list = mutableListOf<Float>()
+
+    fun start(){
+        setContentView(R.layout.activity_start)
+        val tv_pnum: TextView = findViewById(R.id.tv_pnum)
+        val btn_plus: Button = findViewById(R.id.btn_plus)
+        val btn_minus: Button = findViewById(R.id.btn_minus)
+        val btn_start: Button = findViewById(R.id.btn_start)
+
+        tv_pnum.text = p_num.toString()
+
+        btn_minus.setOnClickListener {
+            p_num--
+            if(p_num == 0){
+                p_num = 1
+            }
+            tv_pnum.text = p_num.toString()
+        }
+
+        btn_plus.setOnClickListener {
+            p_num++
+            tv_pnum.text = p_num.toString()
+        }
+        btn_start.setOnClickListener {
+            main()
+        }
+
+    }
 
     fun main() {
         setContentView(R.layout.activity_main) // setContentView를 가장 먼저 호출하는 것이 일반적입니다.
@@ -30,9 +52,9 @@ class MainActivity : AppCompatActivity() {
         var timerTask: Timer? = null
         var sec: Int = 0
         var stage = 1
-        val tv: TextView = findViewById(R.id.tv_random)
+        val tv: TextView = findViewById(R.id.tv_pnum)
         val tv_t: TextView = findViewById(R.id.tv_timer)
-        val btn: Button = findViewById(R.id.btn_main)
+        val btn: Button = findViewById(R.id.btn_start)
         val tv_p: TextView = findViewById(R.id.tv_point)
         val tv_people: TextView = findViewById(R.id.tv_people)
         val random_box = Random()
@@ -63,18 +85,33 @@ class MainActivity : AppCompatActivity() {
                 if(k < p_num){
                     k++
                     main()
+                }else {
+                    end()
                 }
-            } else {
-                println(point_list)
             }
         }
     }
+    fun end(){
+        setContentView(R.layout.activity_end)
+        val btn_init: Button = findViewById(R.id.btn_init)
+        val tv_last: TextView = findViewById(R.id.tv_last)
+        val tv_lpoint: TextView = findViewById(R.id.tv_lpoint)
 
+        tv_lpoint.text = point_list.maxOrNull().toString()
+        var index_last = point_list.indexOf(point_list.maxOrNull())
+        tv_last.text = "참가자 " + (index_last + 1).toString()
+
+        btn_init.setOnClickListener {
+            point_list.clear()
+            k = 1
+            start()
+        }
+
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        main()
+        start()
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
