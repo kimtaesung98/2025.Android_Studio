@@ -57,7 +57,19 @@
         app:layout_constraintVertical_bias="0.443" />
 
     <Button
-        android:id="@+id/btn_start"
+        android:id="@+id/btn_i"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="처음으로"
+        android:textSize="34sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_Blind2"
+        app:layout_constraintVertical_bias="0.537" />
+
+    <Button
+        android:id="@+id/btn_Blind2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="시작/정지"
@@ -65,19 +77,20 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_pnum" />
+        app:layout_constraintTop_toBottomOf="@+id/tv_pnum"
+        app:layout_constraintVertical_bias="0.529" />
 
     <TextView
         android:id="@+id/tv_point"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="48sp"
-        app:layout_constraintBottom_toTopOf="@+id/btn_start"
+        app:layout_constraintBottom_toTopOf="@+id/btn_i"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_pnum"
-        app:layout_constraintVertical_bias="0.93" />
+        app:layout_constraintVertical_bias="0.262" />
 
     <TextView
         android:id="@+id/tv_people"
