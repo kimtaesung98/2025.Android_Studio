@@ -2,9 +2,10 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/bg_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#A8F649"
     tools:context=".MainActivity">
 
     <TextView
@@ -60,6 +61,7 @@
         android:id="@+id/btn_i"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:backgroundTint="#8BC34A"
         android:text="처음으로"
         android:textSize="34sp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -72,6 +74,7 @@
         android:id="@+id/btn_Blind2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:backgroundTint="#4CAF50"
         android:text="시작/정지"
         android:textSize="48sp"
         app:layout_constraintBottom_toBottomOf="parent"

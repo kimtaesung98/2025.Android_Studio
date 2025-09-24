@@ -1,5 +1,6 @@
 package com.example.practice
 
+import android.graphics.Color
 import android.os.Bundle
 import android.widget.Button
 import androidx.activity.enableEdgeToEdge
@@ -7,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
 import java.util.Random
 import java.util.Timer // Timer를 사용하려면 java.util.Timer를 임포트해야 합니다.
 import kotlin.concurrent.timer // kotlin.concurrent.timer를 사용하려면 임포트해야 합니다.
@@ -71,6 +73,14 @@ class MainActivity : AppCompatActivity() {
         val btn_i: TextView = findViewById(R.id.btn_i)
         val random_box = Random()
         val num = random_box.nextInt(1001) // num 초기화
+        val bg_main : ConstraintLayout = findViewById(R.id.bg_main)
+        val color_list = mutableListOf<String>("#CEF0A3","#CBF498","#C6F889","#BDF675","#B9F86B","#B0F45C","#ADF654","#ADF654")
+        var color_index = k % 8 - 1
+        if(color_index == -1){
+            color_index = k
+        }
+        val color_sel = color_list.get(color_index)
+        bg_main.setBackgroundColor(Color.parseColor(color_sel))
 
         tv.text = (num.toFloat() / 100).toString()
         btn.text = "시작"
@@ -139,7 +149,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         start()
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bg_main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
