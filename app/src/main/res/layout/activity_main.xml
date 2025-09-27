@@ -16,9 +16,10 @@
         android:textSize="60sp"
         app:layout_constraintBottom_toTopOf="@+id/tv_pnum"
         app:layout_constraintEnd_toEndOf="@+id/tv_pnum"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="@+id/tv_pnum"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.85" />
+        app:layout_constraintVertical_bias="1.0" />
 
     <TextView
         android:id="@+id/tv_pnum"
@@ -59,6 +60,7 @@
 
     <Button
         android:id="@+id/btn_i"
+        style="@style/customButtonFontStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:backgroundTint="#8BC34A"
@@ -72,6 +74,7 @@
 
     <Button
         android:id="@+id/btn_Blind2"
+        style="@style/customButtonFontStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:backgroundTint="#4CAF50"
@@ -81,7 +84,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_pnum"
-        app:layout_constraintVertical_bias="0.529" />
+        app:layout_constraintVertical_bias="0.233" />
 
     <TextView
         android:id="@+id/tv_point"
@@ -93,7 +96,7 @@
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_pnum"
-        app:layout_constraintVertical_bias="0.262" />
+        app:layout_constraintVertical_bias="0.0" />
 
     <TextView
         android:id="@+id/tv_people"
@@ -106,5 +109,5 @@
         app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.506" />
+        app:layout_constraintVertical_bias="0.255" />
 </androidx.constraintlayout.widget.ConstraintLayout>
