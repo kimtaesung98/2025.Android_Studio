@@ -13,7 +13,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
+        multiDexEnabled =  true
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -45,4 +45,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation("com.google.android.gms:play-services-ads:24.6.0")
+
 }

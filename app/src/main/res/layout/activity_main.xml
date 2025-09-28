@@ -2,7 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/bg_main"
+    android:id="@+id/bg_main2"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#A8F649"
@@ -10,59 +10,50 @@
 
     <TextView
         android:id="@+id/tv_random3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="133dp"
+        android:layout_height="133dp"
+        android:layout_marginTop="152dp"
         android:text="목표"
         android:textSize="60sp"
-        app:layout_constraintBottom_toTopOf="@+id/tv_pnum"
-        app:layout_constraintEnd_toEndOf="@+id/tv_pnum"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="@+id/tv_pnum"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="1.0" />
+        tools:layout_editor_absoluteX="59dp" />
 
     <TextView
         android:id="@+id/tv_pnum"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="132dp"
+        android:layout_height="213dp"
+        android:layout_marginStart="60dp"
         android:text="0.00"
         android:textSize="60sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.211"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.443" />
+        tools:layout_editor_absoluteY="285dp" />
 
     <TextView
         android:id="@+id/tv_timer3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
+        android:layout_width="119dp"
+        android:layout_height="133dp"
         android:text="현재"
         android:textSize="60sp"
         app:layout_constraintBottom_toTopOf="@+id/tv_timer"
-        app:layout_constraintEnd_toEndOf="@+id/tv_timer"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.85" />
+        tools:layout_editor_absoluteX="240dp" />
 
     <TextView
         android:id="@+id/tv_timer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="118dp"
+        android:layout_height="213dp"
         android:layout_marginEnd="48dp"
         android:text="0.00"
         android:textSize="60sp"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.443" />
+        app:layout_constraintHorizontal_bias="0.905"
+        app:layout_constraintStart_toEndOf="@+id/tv_pnum"
+        tools:layout_editor_absoluteY="286dp" />
 
     <Button
         android:id="@+id/btn_i"
         style="@style/customButtonFontStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="217dp"
+        android:layout_height="101dp"
         android:backgroundTint="#8BC34A"
         android:text="처음으로"
         android:textSize="34sp"
@@ -70,21 +61,22 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/btn_Blind2"
-        app:layout_constraintVertical_bias="0.537" />
+        app:layout_constraintVertical_bias="0.86" />
 
     <Button
         android:id="@+id/btn_Blind2"
         style="@style/customButtonFontStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="260dp"
+        android:layout_height="131dp"
         android:backgroundTint="#4CAF50"
         android:text="시작/정지"
         android:textSize="48sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.496"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_pnum"
-        app:layout_constraintVertical_bias="0.233" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.831" />
 
     <TextView
         android:id="@+id/tv_point"
@@ -100,14 +92,26 @@
 
     <TextView
         android:id="@+id/tv_people"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="183dp"
+        android:layout_height="143dp"
+        android:layout_marginTop="48dp"
         android:text="참가자"
         android:textSize="60sp"
-        app:layout_constraintBottom_toTopOf="@+id/tv_timer3"
+        app:layout_constraintBottom_toTopOf="@+id/btn_Blind2"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.255" />
+        app:layout_constraintVertical_bias="0.087" />
+
+    <com.google.android.gms.ads.AdView
+        android:id="@+id/adView"
+        xmlns:ads="http://schemas.android.com/apk/res-auto"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        ads:adSize="BANNER"
+        ads:adUnitId="ca-app-pub-3940256099942544/6300978111"
+        />
 </androidx.constraintlayout.widget.ConstraintLayout>

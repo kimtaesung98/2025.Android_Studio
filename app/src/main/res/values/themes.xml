@@ -6,6 +6,10 @@
         <!--custom font-family 적용-->
         <item name="android:textViewStyle">@style/customTextViewFontStyle</item>
         <item name="android:buttonStyle">@style/customButtonFontStyle</item>
+        <!--상태바 삭제 코드 -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
     </style>
 
     <style name="Theme.Practice" parent="Base.Theme.Practice" />

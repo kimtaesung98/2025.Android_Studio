@@ -9,6 +9,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.MobileAds
 import java.util.Random
 import java.util.Timer // Timer를 사용하려면 java.util.Timer를 임포트해야 합니다.
 import kotlin.concurrent.timer // kotlin.concurrent.timer를 사용하려면 임포트해야 합니다.
@@ -22,6 +25,13 @@ class MainActivity : AppCompatActivity() {
 
     var isBlind = false
     fun start() {
+        MobileAds.initialize(this) {}
+
+        val mAdView : AdView = findViewById(R.id.adView)
+        val adRequest = AdRequest.Builder().build()
+        mAdView.loadAd(adRequest)
+
+
         setContentView(R.layout.activity_start)
         val tv_pnum: TextView = findViewById(R.id.tv_pnum)
         val btn_plus: Button = findViewById(R.id.btn_plus)
@@ -59,6 +69,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun main() {
+
+        MobileAds.initialize(this) {}
+
+        val mAdView:AdView = findViewById(R.id.adView)
+        val adRequest = AdRequest.Builder().build()
+        mAdView.loadAd(adRequest)
+
         setContentView(R.layout.activity_main) // setContentView를 가장 먼저 호출하는 것이 일반적입니다.
 
         // UI 요소들을 클래스 레벨 변수로 선언하여 onCreate 및 다른 함수에서 접근 가능하도록 합니다.
@@ -73,7 +90,7 @@ class MainActivity : AppCompatActivity() {
         val btn_i: TextView = findViewById(R.id.btn_i)
         val random_box = Random()
         val num = random_box.nextInt(1001) // num 초기화
-        val bg_main : ConstraintLayout = findViewById(R.id.bg_main)
+        val bg_main : ConstraintLayout = findViewById(R.id.bg_main2)
         val color_list = mutableListOf<String>("#CEF0A3","#CBF498","#C6F889","#BDF675","#B9F86B","#B0F45C","#ADF654","#ADF654")
         var color_index = k % 8 - 1
         if(color_index == -1){
@@ -127,6 +144,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun end() {
+
+        MobileAds.initialize(this) {}
+
+        val mAdView : AdView= findViewById(R.id.adView)
+        val adRequest = AdRequest.Builder().build()
+        mAdView.loadAd(adRequest)
+
         setContentView(R.layout.activity_end)
         val btn_init: Button = findViewById(R.id.btn_init)
         val tv_last: TextView = findViewById(R.id.tv_last)
@@ -149,7 +173,8 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         start()
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bg_main)) { v, insets ->
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.bg_main2)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
