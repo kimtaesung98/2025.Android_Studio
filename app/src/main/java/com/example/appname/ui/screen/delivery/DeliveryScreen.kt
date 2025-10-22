@@ -1,4 +1,4 @@
-package com.project.appname.ui.screen.delivery
+package com.e.appname.ui.screen.delivery
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -32,8 +32,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.project.appname.ui.theme.AppnameTheme
-import com.project.appname.viewmodel.DeliveryViewModel
+import com.example.appname.ui.theme.AppnameTheme
+import com.example.appname.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable

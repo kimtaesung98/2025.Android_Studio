@@ -1,4 +1,4 @@
-package com.project.appname.ui.theme
+package com.example.appname.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -14,11 +14,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.compose.material3.Typography // 이 줄이 있어야 합니다.
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 
 // (1) 어두운 테마일 때 사용할 색상 조합
 private val DarkColorScheme = darkColorScheme(
@@ -64,13 +59,3 @@ fun AppnameTheme( // MainActivity에서 호출할 테마 함수의 이름을 App
         content = content
     )
 }
-val Typography = androidx.compose.material3.Typography(
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize =16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    )
-    /* 다른 텍스트 스타일들... */
-)

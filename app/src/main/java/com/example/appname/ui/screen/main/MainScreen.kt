@@ -1,4 +1,4 @@
-package com.project.appname.ui.screen.main
+package com.example.appname.ui.screen.main
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -16,10 +16,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.project.appname.R // R 클래스 접근을 위해 필요
-import com.project.appname.ui.screen.delivery.DeliveryScreen
-import com.project.appname.ui.screen.feed.FeedScreen
-import com.project.appname.ui.screen.shorts.ShortsScreen
+import com.example.appname.R // R 클래스 접근을 위해 필요
+import com.example.appname.ui.screen.delivery.DeliveryScreen
+import com.example.appname.ui.screen.feed.FeedScreen
+import com.example.appname.ui.screen.shorts.ShortsScreen
 
 // (1) 네비게이션 경로와 아이콘, 라벨을 정의하는 Sealed Class
 sealed class BottomNavItem(

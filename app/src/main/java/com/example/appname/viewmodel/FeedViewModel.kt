@@ -1,31 +1,74 @@
-package com.project.appname.viewmodel
+// (1) 🚨 이 파일의 주소(패키지)를 '진짜' 이름으로 선언합니다.
+package com.example.appname.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.project.appname.R
-import com.project.appname.model.Post
+import com.example.appname.R // 👈 '진짜' 패키지 이름의 R 클래스
+import com.example.appname.model.Post // 👈 '진짜' 패키지 이름의 Post 모델
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
+// (2) 🚨 FeedUiState의 정의. 이 파일 안에 있어야 합니다.
 data class FeedUiState(
-    val posts: List<Post> = emptyList()
+    val posts: List<Post> = emptyList(),
+    val commentingPostId: Int? = null,
+    val currentCommentText: String = ""
 )
 
 class FeedViewModel : ViewModel() {
+    // ... (ViewModel의 나머지 코드는 동일) ...
     private val _uiState = MutableStateFlow(FeedUiState())
     val uiState = _uiState.asStateFlow()
 
     init {
-        // (1) 앱 실행 시 보여줄 임시(더미) 데이터 생성
         loadDummyPosts()
     }
 
     private fun loadDummyPosts() {
         val dummyPosts = listOf(
-            Post(1, "Gemini", "Jetpack Compose로 피드 화면 만들기! 정말 간단해요.", R.drawable.ic_launcher_background),
-            Post(2, "Android Studio", "새로운 버전이 출시되었습니다. 확인해보세요.", R.drawable.ic_launcher_background),
-            Post(3, "Kotlin", "코틀린 2.0이 점점 다가옵니다.", R.drawable.ic_launcher_background),
+            Post(1, "Gemini", "Jetpack Compose로 피드 화면 만들기!", R.drawable.ic_launcher_background, isLiked = true),
+            Post(2, "Android Studio", "새로운 버전이 출시되었습니다.", R.drawable.ic_launcher_background),
+            Post(3, "Kotlin", "코틀린 2.0이 점점 다가옵니다.", R.drawable.ic_launcher_background, isLiked = true),
             Post(4, "Developer", "오늘도 즐거운 코딩! #일상", R.drawable.ic_launcher_background)
         )
         _uiState.value = FeedUiState(posts = dummyPosts)
+    }
+
+    fun onLikeClicked(postId: Int) {
+        _uiState.update { currentState ->
+            val updatedPosts = currentState.posts.map { post ->
+                if (post.id == postId) {
+                    post.copy(isLiked = !post.isLiked)
+                } else {
+                    post
+                }
+            }
+            currentState.copy(posts = updatedPosts)
+        }
+    }
+
+    fun onCommentIconClicked(postId: Int) {
+        _uiState.update { currentState ->
+            if (currentState.commentingPostId == postId) {
+                currentState.copy(commentingPostId = null, currentCommentText = "")
+            } else {
+                currentState.copy(commentingPostId = postId, currentCommentText = "")
+            }
+        }
+    }
+
+    fun onCommentTextChanged(newText: String) {
+        _uiState.update {
+            it.copy(currentCommentText = newText)
+        }
+    }
+
+    fun onSubmitComment(postId: Int) {
+        val commentText = uiState.value.currentCommentText
+        if (commentText.isBlank()) return
+        println("Comment Submitted on Post $postId: $commentText")
+        _uiState.update {
+            it.copy(commentingPostId = null, currentCommentText = "")
+        }
     }
 }

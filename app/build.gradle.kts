@@ -82,4 +82,15 @@ dependencies {
 
     // (1) 🚨 Material Design 아이콘을 사용하기 위한 라이브러리
     implementation("androidx.compose.material:material-icons-extended")
+
+    // ... dependencies 블록의 다른 내용들 ...
+
+// (1) 🚨 Pager (Horizontal, Vertical) 기능을 위한 라이브러리
+    implementation("androidx.compose.foundation:foundation:1.6.7") // foundation의 Pager가 1.6.0부터 정식 포함됨
+
+// (2) 🚨 비디오 재생(ExoPlayer)을 위한 Media3 라이브러리
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1") // 플레이어 UI 컨트롤러
+
+// ... 다른 라이브러리들 ...
 }

@@ -1,4 +1,4 @@
-package com.project.appname.viewmodel
+package com.example.appname.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope // viewModelScope를 사용하기 위해 import
@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asSharedFlow // SharedFlow import
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch // Coroutine launch import
-import com.project.appname.model.DeliveryRequest // 입력받은 데이터 저장, 데이터 클라스
+import com.example.appname.model.DeliveryRequest // 입력받은 데이터 저장, 데이터 클라스
 // (1) UI 상태를 담을 데이터 클래스
 data class DeliveryUiState(
     val restaurantName: String = "",
