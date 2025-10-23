@@ -1,14 +1,15 @@
-package com.example.appname.viewmodel
+package com.example.appname.delivery.ui
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope // viewModelScope를 사용하기 위해 import
-import kotlinx.coroutines.flow.MutableSharedFlow // SharedFlow import
+import androidx.lifecycle.viewModelScope
+import com.example.appname.delivery.domain.model.DeliveryRequest
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow // SharedFlow import
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch // Coroutine launch import
-import com.example.appname.model.DeliveryRequest // 입력받은 데이터 저장, 데이터 클라스
+import kotlinx.coroutines.launch
+
 // (1) UI 상태를 담을 데이터 클래스
 data class DeliveryUiState(
     val restaurantName: String = "",
@@ -57,7 +58,8 @@ class DeliveryViewModel : ViewModel() {
         val requestData = DeliveryRequest(
             restaurant = currentState.restaurantName,
             menu = currentState.menu,
-            address = currentState.deliveryAddress
+            address = currentState.deliveryAddress,
+            requestTime = System.currentTimeMillis()
         )
 
         // TODO: 실제 서버에 'requestData'를 전송하는 로직

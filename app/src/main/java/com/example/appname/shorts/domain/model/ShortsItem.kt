@@ -1,4 +1,4 @@
-package com.example.appname.model
+package com.example.appname.shorts.domain.model
 
 data class ShortsItem(
     val id: Int,

@@ -1,4 +1,4 @@
-package com.example.appname.model
+package com.example.appname.delivery.domain.model
 
 // (1) 서버나 데이터베이스로 전달될 순수한 데이터 구조를 정의
 data class DeliveryRequest(

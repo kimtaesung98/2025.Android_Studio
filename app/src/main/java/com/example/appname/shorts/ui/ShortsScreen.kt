@@ -1,4 +1,4 @@
-package com.example.appname.ui.screen.shorts
+package com.example.appname.shorts.ui
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.PageSize
@@ -9,9 +9,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-// (1) 🚨 분리된 VideoPlayerItem을 import
 import com.example.appname.ui.screen.shorts.components.VideoPlayerItem
-import com.example.appname.viewmodel.ShortsViewModel
+import com.example.appname.shorts.ui.ShortsViewModel
 
 @Composable
 fun ShortsScreen(shortsViewModel: ShortsViewModel = viewModel()) {
@@ -20,7 +19,7 @@ fun ShortsScreen(shortsViewModel: ShortsViewModel = viewModel()) {
 
     VerticalPager(
         state = pagerState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.Companion.fillMaxSize(),
         pageSize = PageSize.Fill
     ) { pageIndex ->
         if (uiState.items.isNotEmpty()) {
@@ -36,5 +35,3 @@ fun ShortsScreen(shortsViewModel: ShortsViewModel = viewModel()) {
         }
     }
 }
-
-// (3) 🚨 @Composable fun VideoPlayerItem(...) { ... } 코드는 여기서 삭제됨

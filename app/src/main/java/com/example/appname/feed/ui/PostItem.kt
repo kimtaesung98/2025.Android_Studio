@@ -1,6 +1,5 @@
-package com.example.appname.ui.screen.feed.components
+package com.example.appname.feed.ui
 
-// 🚨🚨🚨 오류의 핵심 원인: 이 import 블록이 완전해야 합니다 🚨🚨🚨
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,8 +28,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.appname.Feed.domain.model.Post // 👈 Post 모델 Import
-// 🚨🚨🚨 여기까지 import 블록 🚨🚨🚨
+import com.example.appname.feed.domain.model.Post
 
 @Composable
 fun PostItem(
@@ -43,36 +41,40 @@ fun PostItem(
     onSubmitComment: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.Companion.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column {
             Image(
                 painter = painterResource(id = post.imageRes), // 👈 R 클래스 사용
                 contentDescription = "Post Image",
-                modifier = Modifier
+                modifier = Modifier.Companion
                     .fillMaxWidth()
                     .height(200.dp),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Companion.Crop
             )
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = post.author, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                Spacer(modifier = Modifier.height(4.dp))
+            Column(modifier = Modifier.Companion.padding(16.dp)) {
+                Text(
+                    text = post.author,
+                    fontWeight = FontWeight.Companion.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.Companion.height(4.dp))
                 Text(text = post.content, style = MaterialTheme.typography.bodyMedium)
             }
 
             // ... (Row 및 하단 코드는 동일) ...
             Row(
-                modifier = Modifier
+                modifier = Modifier.Companion
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Companion.CenterVertically
             ) {
                 IconButton(onClick = onLikeClicked) {
                     Icon(
                         imageVector = if (post.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "좋아요",
-                        tint = if (post.isLiked) Color.Red else MaterialTheme.colorScheme.onSurface
+                        tint = if (post.isLiked) Color.Companion.Red else MaterialTheme.colorScheme.onSurface
                     )
                 }
                 IconButton(onClick = onCommentIconClicked) {
@@ -91,14 +93,14 @@ fun PostItem(
 
             if (isCommenting) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.Companion.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.Companion.CenterVertically
                 ) {
                     OutlinedTextField(
                         value = commentText,
                         onValueChange = onCommentTextChanged,
                         label = { Text("댓글 달기...") },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.Companion.weight(1f),
                         maxLines = 3
                     )
                     IconButton(onClick = onSubmitComment) {

@@ -1,4 +1,4 @@
-package com.example.appname.ui.screen.delivery
+package com.example.appname.delivery.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -32,8 +32,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.appname.delivery.ui.DeliveryViewModel
 import com.example.appname.ui.theme.AppnameTheme
-import com.example.appname.viewmodel.DeliveryViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -52,10 +52,10 @@ fun DeliveryScreen(
     }
 
     Column(
-        modifier = Modifier
+        modifier = Modifier.Companion
             .fillMaxSize()
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        horizontalAlignment = Alignment.Companion.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
@@ -63,16 +63,16 @@ fun DeliveryScreen(
             style = MaterialTheme.typography.titleLarge
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.Companion.height(16.dp))
 
         OutlinedTextField(
             value = uiState.restaurantName,
             onValueChange = { deliveryViewModel.onRestaurantNameChange(it) },
             label = { Text("음식점 이름") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.Companion.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Default.Restaurant, contentDescription = "음식점 아이콘") },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Companion.Next),
+            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Companion.Down) }),
             singleLine = true
         )
 
@@ -80,10 +80,10 @@ fun DeliveryScreen(
             value = uiState.menu,
             onValueChange = { deliveryViewModel.onMenuChange(it) },
             label = { Text("메뉴") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.Companion.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Default.RestaurantMenu, contentDescription = "메뉴 아이콘") },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Companion.Next),
+            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Companion.Down) }),
             singleLine = true
         )
 
@@ -91,20 +91,20 @@ fun DeliveryScreen(
             value = uiState.deliveryAddress,
             onValueChange = { deliveryViewModel.onDeliveryAddressChange(it) },
             label = { Text("배달 주소") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.Companion.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Default.Home, contentDescription = "주소 아이콘") },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Companion.Done),
             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.Companion.weight(1f))
 
         Button(
             onClick = {
                 deliveryViewModel.submitDeliveryRequest()
             },
-            modifier = Modifier
+            modifier = Modifier.Companion
                 .fillMaxWidth()
                 .height(50.dp)
         ) {

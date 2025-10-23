@@ -1,4 +1,4 @@
-package com.example.appname.Feed.ui
+package com.example.appname.feed.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -24,8 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.appname.Feed.domain.model.Post
-import com.example.appname.Feed.ui.FeedViewModel
+import com.example.appname.feed.domain.model.Post
 
 @Composable
 fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {

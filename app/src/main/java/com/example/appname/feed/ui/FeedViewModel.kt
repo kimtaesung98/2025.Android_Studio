@@ -1,7 +1,7 @@
-package com.example.appname.Feed.ui
+package com.example.appname.feed.ui
 
 import androidx.lifecycle.ViewModel
-import com.example.appname.Feed.domain.model.Post
+import com.example.appname.feed.domain.model.Post
 import com.example.appname.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

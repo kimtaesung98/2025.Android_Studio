@@ -1,4 +1,4 @@
-package com.example.appname.Feed.domain.model
+package com.example.appname.feed.domain.model
 
 import androidx.annotation.DrawableRes
 
