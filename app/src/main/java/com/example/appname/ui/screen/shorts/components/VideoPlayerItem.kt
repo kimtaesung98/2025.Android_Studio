@@ -1,6 +1,5 @@
 package com.example.appname.ui.screen.shorts.components
 
-// (1) 🚨 VideoPlayerItem이 사용하는 모든 부품을 import 합니다.
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +25,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.example.appname.model.ShortsItem // (2) 🚨 ShortsItem 모델 import
+import com.example.appname.model.ShortsItem
 
 // (3) 🚨 ShortsScreen.kt에서 잘라내어 옮겨온 코드
 @Composable
@@ -61,7 +60,7 @@ fun VideoPlayerItem(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.Companion.fillMaxSize()) {
         // 비디오 플레이어 (배경)
         AndroidView(
             factory = {
@@ -70,29 +69,33 @@ fun VideoPlayerItem(
                     useController = false // 커스텀 UI 사용
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.Companion.fillMaxSize()
         )
 
         // 아이콘 버튼 UI (전경)
         Column(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
+            modifier = Modifier.Companion
+                .align(Alignment.Companion.CenterEnd)
                 .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.Companion.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             IconButton(onClick = onLikeClicked) {
                 Icon(
                     imageVector = if (shortsItem.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "좋아요",
-                    tint = if (shortsItem.isLiked) Color.Red else Color.White
+                    tint = if (shortsItem.isLiked) Color.Companion.Red else Color.Companion.White
                 )
             }
             IconButton(onClick = { /* TODO: Shorts 댓글 로직 */ }) {
-                Icon(Icons.Default.ChatBubbleOutline, contentDescription = "댓글", tint = Color.White)
+                Icon(
+                    Icons.Default.ChatBubbleOutline,
+                    contentDescription = "댓글",
+                    tint = Color.Companion.White
+                )
             }
             IconButton(onClick = { /* TODO: Shorts 공유 로직 */ }) {
-                Icon(Icons.Default.Share, contentDescription = "공유", tint = Color.White)
+                Icon(Icons.Default.Share, contentDescription = "공유", tint = Color.Companion.White)
             }
         }
     }

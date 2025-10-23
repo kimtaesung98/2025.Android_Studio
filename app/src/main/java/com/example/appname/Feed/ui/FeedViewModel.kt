@@ -1,9 +1,8 @@
-// (1) 🚨 이 파일의 주소(패키지)를 '진짜' 이름으로 선언합니다.
-package com.example.appname.viewmodel
+package com.example.appname.Feed.ui
 
 import androidx.lifecycle.ViewModel
-import com.example.appname.R // 👈 '진짜' 패키지 이름의 R 클래스
-import com.example.appname.model.Post // 👈 '진짜' 패키지 이름의 Post 모델
+import com.example.appname.Feed.domain.model.Post
+import com.example.appname.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -26,9 +25,21 @@ class FeedViewModel : ViewModel() {
 
     private fun loadDummyPosts() {
         val dummyPosts = listOf(
-            Post(1, "Gemini", "Jetpack Compose로 피드 화면 만들기!", R.drawable.ic_launcher_background, isLiked = true),
+            Post(
+                1,
+                "Gemini",
+                "Jetpack Compose로 피드 화면 만들기!",
+                R.drawable.ic_launcher_background,
+                isLiked = true
+            ),
             Post(2, "Android Studio", "새로운 버전이 출시되었습니다.", R.drawable.ic_launcher_background),
-            Post(3, "Kotlin", "코틀린 2.0이 점점 다가옵니다.", R.drawable.ic_launcher_background, isLiked = true),
+            Post(
+                3,
+                "Kotlin",
+                "코틀린 2.0이 점점 다가옵니다.",
+                R.drawable.ic_launcher_background,
+                isLiked = true
+            ),
             Post(4, "Developer", "오늘도 즐거운 코딩! #일상", R.drawable.ic_launcher_background)
         )
         _uiState.value = FeedUiState(posts = dummyPosts)

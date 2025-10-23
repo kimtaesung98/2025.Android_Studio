@@ -29,8 +29,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.appname.R // 👈 R 클래스 Import
-import com.example.appname.model.Post // 👈 Post 모델 Import
+import com.example.appname.Feed.domain.model.Post // 👈 Post 모델 Import
 // 🚨🚨🚨 여기까지 import 블록 🚨🚨🚨
 
 @Composable

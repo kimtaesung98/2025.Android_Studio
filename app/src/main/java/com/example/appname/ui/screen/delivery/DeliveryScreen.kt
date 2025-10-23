@@ -1,4 +1,4 @@
-package com.e.appname.ui.screen.delivery
+package com.example.appname.ui.screen.delivery
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -120,3 +120,5 @@ fun DeliveryScreenPreview() {
         DeliveryScreen()
     }
 }
+
+annotation class DeliveryScreen

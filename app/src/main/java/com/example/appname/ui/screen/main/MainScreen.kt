@@ -18,7 +18,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.appname.R // R 클래스 접근을 위해 필요
 import com.example.appname.ui.screen.delivery.DeliveryScreen
-import com.example.appname.ui.screen.feed.FeedScreen
+import com.example.appname.Feed.ui.FeedScreen
 import com.example.appname.ui.screen.shorts.ShortsScreen
 
 // (1) 네비게이션 경로와 아이콘, 라벨을 정의하는 Sealed Class

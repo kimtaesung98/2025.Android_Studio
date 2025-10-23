@@ -1,7 +1,14 @@
-package com.example.appname.ui.screen.feed
+package com.example.appname.Feed.ui
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
@@ -17,8 +24,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.appname.model.Post
-import com.example.appname.viewmodel.FeedViewModel
+import com.example.appname.Feed.domain.model.Post
+import com.example.appname.Feed.ui.FeedViewModel
 
 @Composable
 fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {
@@ -26,7 +33,7 @@ fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {
 
     // (1) 스크롤 가능한 목록
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.Companion.fillMaxSize(),
         contentPadding = PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -41,21 +48,25 @@ fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {
 @Composable
 fun PostItem(post: Post) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.Companion.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column {
             Image(
                 painter = painterResource(id = post.imageRes),
                 contentDescription = "Post Image",
-                modifier = Modifier
+                modifier = Modifier.Companion
                     .fillMaxWidth()
                     .height(200.dp),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Companion.Crop
             )
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = post.author, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                Spacer(modifier = Modifier.height(4.dp))
+            Column(modifier = Modifier.Companion.padding(16.dp)) {
+                Text(
+                    text = post.author,
+                    fontWeight = FontWeight.Companion.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.Companion.height(4.dp))
                 Text(text = post.content, style = MaterialTheme.typography.bodyMedium)
             }
         }
