@@ -1,28 +1,52 @@
 package com.example.appname.user.data.repository
 
+import com.example.appname.user.data.local.UserPreferencesRepository
 import com.example.appname.user.domain.model.User
 import com.example.appname.user.domain.repository.UserRepository
 import kotlinx.coroutines.delay
-
-/**
- * [설계 의도 요약]
- * UserRepository 인터페이스의 실제 구현체입니다.
- * 2단계 '살 붙이기'에서 여기에 Retrofit(API) 호출 로직이 추가됩니다.
- */
-class UserRepositoryImpl : UserRepository {
+import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
+class UserRepositoryImpl @Inject constructor( // 🚨 (2) [Update] 생성자 주입
+    private val userPreferences: UserPreferencesRepository
+) : UserRepository {
 
     override suspend fun login(email: String, password: String): Result<User> {
-        // TODO: implement details (Retrofit API 호출)
+        // ... (기존 API 호출 시뮬레이션) ...
+        delay(1000)
+        val dummyUser = User(id = "uid-123", email = email, nickname = "테스트 유저")
 
-        // (임시) 1단계에서는 네트워크 통신을 흉내 내고(delay) 무조건 성공 가정
-        delay(1000) // 1초 지연 (네트워크 흉내)
+        // 🚨 (3) [New] 로그인 성공 시, 토큰(여기선 ID)을 DataStore에 저장
+        saveAuthToken(dummyUser.id) // 👈 UseCase가 아닌 Repository가 직접 호출
 
-        // (임시) 더미 사용자 반환
-        val dummyUser = User(
-            id = "uid-123",
-            email = email,
-            nickname = "테스트 유저"
-        )
         return Result.success(dummyUser)
+    }
+
+    override suspend fun logout(): Result<Boolean> {
+        // ... (기존 로그아웃 시뮬레이션) ...
+
+        // 🚨 (4) [New] 로그아웃 성공 시, DataStore에서 토큰 삭제
+        saveAuthToken(null)
+
+        return Result.success(true)
+    }
+
+    // 🚨 (5) [New] DataStore Wrapper의 Flow를 그대로 반환
+    override fun getAuthTokenFlow(): Flow<String?> {
+        return userPreferences.authTokenFlow
+    }
+
+    // 🚨 (6) [New] DataStore Wrapper의 save 함수 호출
+    override suspend fun saveAuthToken(token: String?) {
+        userPreferences.saveAuthToken(token)
+    }
+
+    // 🚨 (7) [New] 토큰으로 사용자 정보 가져오기 (시뮬레이션)
+    override suspend fun getUserProfile(token: String): Result<User> {
+        // TODO: 실제로는 API로 토큰을 보내 사용자 정보를 받아와야 함
+        delay(500)
+        if (token == "uid-123") {
+            return Result.success(User(id = "uid-123", email = "test@user.com", nickname = "테스트 유저"))
+        }
+        return Result.failure(Exception("유효하지 않은 토큰"))
     }
 }

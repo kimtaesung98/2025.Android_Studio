@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appname.feed.domain.model.Post
-
+import com.example.appname.feed.ui.components.PostItem
 import androidx.hilt.navigation.compose.hiltViewModel // (1) 🚨 hiltViewModel import
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -41,7 +41,17 @@ fun FeedScreen(feedViewModel: FeedViewModel = hiltViewModel()) {
     ) {
         // (2) 'posts' 목록의 각 항목을 화면에 표시
         items(uiState.posts) { post ->
-            PostItem(post = post)
+            PostItem(
+                post = post,
+                isCommenting = (uiState.commentingPostId == post.id),
+                commentText = uiState.currentCommentText,
+                // 🚨 (1) [New] 해당 포스트의 댓글 목록을 UiState에서 찾아 전달
+                comments = uiState.commentsByPostId[post.id] ?: emptyList(),
+                onLikeClicked = { feedViewModel.onLikeClicked(post.id) },
+                onCommentIconClicked = { feedViewModel.onCommentIconClicked(post.id) },
+                onCommentTextChanged = { feedViewModel.onCommentTextChanged(it) },
+                onSubmitComment = { feedViewModel.onSubmitComment(post.id) }
+            )
         }
     }
 }

@@ -11,12 +11,15 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 
-import androidx.lifecycle.viewModelScope // viewModelScope import
 import com.example.appname.feed.domain.usecase.LikePostUseCase // 🚨 (1)
 import com.example.appname.feed.domain.usecase.SubmitCommentUseCase // 🚨 (1)
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch // launch import
 import javax.inject.Inject
+import com.example.appname.feed.domain.model.Comment
+import com.example.appname.feed.domain.usecase.GetCommentsUseCase
+
+
 /**
  * [설계 의도]
  * 2단계: ViewModel은 UseCase에 의존하며, UI 상태 관리(StateFlow)에만 집중합니다.
@@ -27,16 +30,17 @@ import javax.inject.Inject
 data class FeedUiState(
     val posts: List<Post> = emptyList(),
     val commentingPostId: Int? = null,
-    val currentCommentText: String = ""
+    val currentCommentText: String = "",
+    val commentsByPostId: Map<Int, List<Comment>> = emptyMap() // <PostID, CommentList>
 )
 
 // 2. ViewModel은 이제 생성자에서 GetFeedPostsUseCase를 주입받습니다.
 @HiltViewModel
 class FeedViewModel @Inject constructor(
-    // (2) 🚨 Hilt가 3개의 UseCase를 모두 자동으로 주입
     private val getFeedPostsUseCase: GetFeedPostsUseCase,
     private val likePostUseCase: LikePostUseCase,
-    private val submitCommentUseCase: SubmitCommentUseCase
+    private val submitCommentUseCase: SubmitCommentUseCase,
+    private val getCommentsUseCase: GetCommentsUseCase // 🚨 (3) [New] UseCase 주입
 ) : ViewModel() {
 
     // region 1. UI 상태 관리
@@ -67,16 +71,23 @@ class FeedViewModel @Inject constructor(
             }
             .launchIn(viewModelScope) // 7. viewModelScope에서 Flow 스트림 실행
     }
+    private fun loadComments(postId: Int) {
+        getCommentsUseCase(postId)
+            .onEach { comments ->
+                _uiState.update { currentState ->
+                    // 현재 댓글 맵을 복사하고, 새 댓글 목록을 덮어씀
+                    val newCommentsMap = currentState.commentsByPostId.toMutableMap()
+                    newCommentsMap[postId] = comments
+                    currentState.copy(commentsByPostId = newCommentsMap)
+                }
+            }
+            .catch { e ->
+                // TODO: 댓글 로드 실패 시 에러 처리
+                println("Error loading comments: ${e.message}")
+            }
+            .launchIn(viewModelScope)
+    }
 
-    // 🚨 1단계에 있었던 loadDummyPosts() 함수는 여기서 삭제되었습니다.
-    // endregion
-
-    // region 3. UI 이벤트 처리 (현재는 ViewModel이 직접 처리)
-    // TODO: 2단계 심화 - 이 로직들도 모두 UseCase로 분리해야 합니다.
-
-    /**
-     * '좋아요' 아이콘 클릭 이벤트 처리
-     */
     fun onLikeClicked(postId: Int) {
         // (3) 🚨 ViewModel이 직접 상태를 조작하던 로직 삭제
         // (4) 🚨 UseCase(suspend 함수)를 viewModelScope에서 호출
@@ -96,20 +107,20 @@ class FeedViewModel @Inject constructor(
             // TODO: 실패 시 UI 피드백 (예: Toast)
         }
     }
-
-    /**
-     * '댓글' 아이콘 클릭 이벤트 처리 (입력창 토글)
-     */
+    // 🚨 (5) [Update] '댓글' 아이콘 클릭 시 댓글 로드도 함께 수행
     fun onCommentIconClicked(postId: Int) {
         _uiState.update { currentState ->
-            if (currentState.commentingPostId == postId) {
+            val isAlreadyCommenting = (currentState.commentingPostId == postId)
+            if (isAlreadyCommenting) {
+                // 댓글 창 닫기
                 currentState.copy(commentingPostId = null, currentCommentText = "")
             } else {
+                // 댓글 창 열기
+                loadComments(postId) // 👈 [New] 댓글 로드 시작
                 currentState.copy(commentingPostId = postId, currentCommentText = "")
             }
         }
     }
-
     /**
      * '댓글' 텍스트 변경 이벤트 처리
      */
@@ -118,28 +129,24 @@ class FeedViewModel @Inject constructor(
             it.copy(currentCommentText = newText)
         }
     }
-
-    /**
-     * '댓글 제출' 이벤트 처리
-     */
+    // 🚨 (6) [Update] '댓글 제출' 성공 시 댓글 목록 새로고침
     fun onSubmitComment(postId: Int) {
         val commentText = uiState.value.currentCommentText
 
-        // (5) 🚨 UseCase(suspend 함수)를 viewModelScope에서 호출
         viewModelScope.launch {
-            val result = submitCommentUseCase(postId, commentText) // UseCase 호출
+            val result = submitCommentUseCase(postId, commentText)
 
             result.onSuccess {
-                // (6) 성공 시 입력창 닫기
+                // 댓글 제출 성공 시
                 _uiState.update {
                     it.copy(commentingPostId = null, currentCommentText = "")
                 }
+                loadComments(postId) // 👈 [New] 댓글 목록 새로고침
             }
             result.onFailure { exception ->
-                // TODO: 실패 시 UI 피드백 (예: "댓글 내용이 비어있습니다." Toast)
+                // ... (실패 처리) ...
                 println("Comment submit failed: ${exception.message}")
             }
         }
     }
-    // endregion
 }

@@ -10,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import com.example.appname.feed.domain.usecase.LikePostUseCase
 import com.example.appname.feed.domain.usecase.SubmitCommentUseCase
+import com.example.appname.feed.domain.usecase.GetCommentsUseCase
 /**
  * [설계 의도 요약]
  * Hilt가 Feed 모듈의 의존성을 주입(Inject)하는 방법을 정의합니다.
@@ -46,5 +47,10 @@ object FeedModule {
     @Provides
     fun provideSubmitCommentUseCase(repository: FeedRepository): SubmitCommentUseCase {
         return SubmitCommentUseCase(repository)
+    }
+    // (2) [New] GetCommentsUseCase 레시피 추가
+    @Provides
+    fun provideGetCommentsUseCase(repository: FeedRepository): GetCommentsUseCase {
+        return GetCommentsUseCase(repository)
     }
 }

@@ -5,7 +5,7 @@ import com.example.appname.feed.domain.model.Post
 import com.example.appname.feed.domain.repository.FeedRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-
+import com.example.appname.feed.domain.model.Comment
 /**
  * [설계 의도 요약]
  * FeedRepository 인터페이스의 실제 구현체입니다.
@@ -30,7 +30,10 @@ class FeedRepositoryImpl : FeedRepository {
             R.drawable.ic_launcher_background
         )
     )
-
+    private val dummyComments = mutableListOf(
+        Comment(id = "c1", postId = 1, author = "Alice", content = "첫 번째 댓글입니다!"),
+        Comment(id = "c2", postId = 1, author = "Bob", content = "Compose 정말 좋네요.")
+    )
     /**
      * 피드 목록을 가져오는 로직의 실제 구현
      */
@@ -55,5 +58,13 @@ class FeedRepositoryImpl : FeedRepository {
         // TODO: implement details (API 호출)
         println("FeedRepositoryImpl: Submitting comment '$commentText' for post $postId (Simulation)")
         return Result.success(true)
+    }
+
+    override fun getComments(postId: Int): Flow<List<Comment>> {
+        // TODO: implement details (API 또는 Room에서 postId에 맞는 댓글 필터링)
+
+        // (임시) 1단계에서는 postId에 맞는 댓글을 필터링하여 Flow로 반환
+        val commentsForPost = dummyComments.filter { it.postId == postId }
+        return flowOf(commentsForPost)
     }
 }

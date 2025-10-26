@@ -1,4 +1,4 @@
-package com.example.appname.feed.ui
+package com.example.appname.feed.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
@@ -29,13 +31,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.appname.feed.domain.model.Post
-
+import com.example.appname.feed.domain.model.Comment
 @Composable
 fun PostItem(
     post: Post,
     isCommenting: Boolean,
     commentText: String,
     onLikeClicked: () -> Unit,
+    comments: List<Comment>,
     onCommentIconClicked: () -> Unit,
     onCommentTextChanged: (String) -> Unit,
     onSubmitComment: () -> Unit
@@ -109,5 +112,49 @@ fun PostItem(
                 }
             }
         }
+    }
+}
+// 🚨 (5) [New] 댓글 목록을 그리는 별도 Composable (PostItem.kt 파일 하단에 추가)
+@Composable
+fun CommentList(comments: List<Comment>) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .heightIn(max = 150.dp) // 댓글 목록이 너무 길어지는 것을 방지
+    ) {
+        if (comments.isEmpty()) {
+            Text(
+                text = "아직 댓글이 없습니다.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            // (참고: LazyColumn 안에 LazyColumn은 성능 이슈가 있을 수 있으나,
+            // heightIn(max)로 높이를 제한하면 Column/forEach로 대체 가능)
+            comments.forEach { comment ->
+                CommentItem(comment = comment)
+            }
+        }
+    }
+}
+
+// 🚨 (6) [New] 댓글 하나를 그리는 Composable (PostItem.kt 파일 하단에 추가)
+@Composable
+fun CommentItem(comment: Comment) {
+    Row(
+        modifier = Modifier.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = comment.author,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = comment.content,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }

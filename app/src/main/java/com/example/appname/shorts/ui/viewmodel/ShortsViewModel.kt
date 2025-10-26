@@ -15,13 +15,22 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import dagger.hilt.android.lifecycle.HiltViewModel // 🚨 (1)
 import javax.inject.Inject // 🚨 (1)
+import com.example.appname.shorts.domain.usecase.SubmitShortsCommentUseCase
+import com.example.appname.shorts.domain.model.ShortsComment // 🚨 (1) [New]
+import com.example.appname.shorts.domain.usecase.GetShortsCommentsUseCase
 data class ShortsUiState(
-    val items: List<ShortsItem> = emptyList()
+    val items: List<ShortsItem> = emptyList(),
+    val isCommentSheetVisible: Boolean = false, // BottomSheet 표시 여부
+    val selectedShortsId: Int? = null, // 현재 댓글을 보려는 쇼츠 ID
+    val comments: List<ShortsComment> = emptyList(), // 로드된 댓글 목록
+    val newCommentText: String = "" // 새 댓글 입력 텍스트
 )
 @HiltViewModel
-class ShortsViewModel @Inject constructor( // (3) 🚨 생성자에 @Inject 추가
+class ShortsViewModel @Inject constructor(
     private val getShortsUseCase: GetShortsUseCase,
-    private val likeShortsUseCase: LikeShortsUseCase
+    private val likeShortsUseCase: LikeShortsUseCase,
+    private val getShortsCommentsUseCase: GetShortsCommentsUseCase, // 🚨 (3) [New]
+    private val submitShortsCommentUseCase: SubmitShortsCommentUseCase // 🚨 (3) [New]
 ) : ViewModel(){
 
     private val _uiState = MutableStateFlow(ShortsUiState())
@@ -46,7 +55,46 @@ class ShortsViewModel @Inject constructor( // (3) 🚨 생성자에 @Inject 추�
             }
             .launchIn(viewModelScope)
     }
+    // 🚨 (4) [New] '댓글' 아이콘 클릭 이벤트
+    fun onCommentIconClicked(shortsId: Int) {
+        _uiState.update { it.copy(isCommentSheetVisible = true, selectedShortsId = shortsId) }
+        loadComments(shortsId)
+    }
 
+    // 🚨 (5) [New] BottomSheet 닫기 이벤트
+    fun onDismissCommentSheet() {
+        _uiState.update { it.copy(isCommentSheetVisible = false, comments = emptyList(), selectedShortsId = null) }
+    }
+
+    // 🚨 (6) [New] 새 댓글 텍스트 변경 이벤트
+    fun onNewCommentTextChanged(text: String) {
+        _uiState.update { it.copy(newCommentText = text) }
+    }
+
+    // 🚨 (7) [New] 댓글 로드 로직
+    private fun loadComments(shortsId: Int) {
+        getShortsCommentsUseCase(shortsId)
+            .onEach { comments ->
+                _uiState.update { it.copy(comments = comments) }
+            }
+            .catch { /* TODO: 에러 처리 */ }
+            .launchIn(viewModelScope)
+    }
+
+    // 🚨 (8) [New] 댓글 제출 이벤트
+    fun onSubmitComment() {
+        val shortsId = _uiState.value.selectedShortsId ?: return
+        val commentText = _uiState.value.newCommentText
+
+        viewModelScope.launch {
+            val result = submitShortsCommentUseCase(shortsId, commentText)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(newCommentText = "") } // 입력창 비우기
+                loadComments(shortsId) // 댓글 목록 새로고침
+            }
+            // TODO: 실패 시 Toast 등 피드백
+        }
+    }
     // 🚨 1단계에 있던 loadDummyShorts() 함수는 삭제됨.
 
     /**

@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.appname.user.ui.viewmodel.UserViewModel
 import kotlinx.coroutines.flow.collectLatest
-
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.graphics.Color
 /**
  * [설계 의도 요약]
  * 2단계: 로그인/회원가입 UI를 표시합니다.
@@ -50,6 +51,14 @@ fun UserScreen(
         if (uiState.loginUser != null) {
             // 로그인 성공 시
             Text(text = "${uiState.loginUser!!.nickname}님, 환영합니다.")
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { userViewModel.onLogoutClicked() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray) // 색상 변경
+            ) {
+                Text("로그아웃")
+            }
         } else {
             // 로그인 전
             OutlinedTextField(

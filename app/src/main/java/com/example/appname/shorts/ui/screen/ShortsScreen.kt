@@ -1,46 +1,83 @@
 package com.example.appname.shorts.ui.screen
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.ExperimentalMaterial3Api // 🚨 (1) [New]
+import androidx.compose.material3.ModalBottomSheet // 🚨 (1) [New]
+import androidx.compose.material3.SheetState // 🚨 (1) [New]
+import androidx.compose.material3.rememberModalBottomSheetState // 🚨 (1) [New]
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.appname.shorts.data.repository.ShortsRepositoryImpl
-import com.example.appname.shorts.domain.usecase.GetShortsUseCase
-import com.example.appname.shorts.domain.usecase.LikeShortsUseCase
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.appname.shorts.ui.components.CommentSheetContent // 🚨 (1) [New]
+import com.example.appname.shorts.ui.components.VideoPlayerItem
 import com.example.appname.shorts.ui.viewmodel.ShortsViewModel
-import com.example.appname.ui.screen.shorts.components.VideoPlayerItem
-import androidx.hilt.navigation.compose.hiltViewModel // (1) 🚨 hiltViewModel import
-import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class) // 🚨 (2) [New] BottomSheet 사용을 위함
 @Composable
 fun ShortsScreen(
-    // (3) 🚨 Hilt가 ViewModel을 자동으로 주입하도록 변경
     shortsViewModel: ShortsViewModel = hiltViewModel()
-){
+) {
     val uiState by shortsViewModel.uiState.collectAsState()
     val pagerState = rememberPagerState(pageCount = { uiState.items.size })
 
-    VerticalPager(
-        state = pagerState,
-        modifier = Modifier.Companion.fillMaxSize(),
-        pageSize = PageSize.Fill
-    ) { pageIndex ->
-        if (uiState.items.isNotEmpty()) {
-            val isSelected = (pagerState.currentPage == pageIndex)
-            val currentItem = uiState.items[pageIndex]
+    // (3) 🚨 BottomSheet 상태 관리
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
 
-            VideoPlayerItem(
-                shortsItem = currentItem,
-                isSelected = isSelected,
-                // 🚨 (5) ViewModel의 '좋아요' 이벤트 핸들러 호출
-                onLikeClicked = { shortsViewModel.onLikeClicked(currentItem.id) }
-            )
+    // (4) 🚨 ViewModel의 isCommentSheetVisible 상태가 변경되면 BottomSheet를 열거나 닫음
+    LaunchedEffect(uiState.isCommentSheetVisible) {
+        if (uiState.isCommentSheetVisible) {
+            scope.launch { sheetState.show() }
+        } else {
+            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                if (!sheetState.isVisible) {
+                    shortsViewModel.onDismissCommentSheet() // 애니메이션 끝나고 VM 상태 변경
+                }
+            }
+        }
+    }
+
+    // (5) 🚨 Box로 Pager와 BottomSheet를 감싼다
+    Box(modifier = Modifier.fillMaxSize()) {
+        VerticalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            pageSize = PageSize.Fill
+        ) { pageIndex ->
+            if (uiState.items.isNotEmpty()) {
+                val isSelected = (pagerState.currentPage == pageIndex)
+                val currentItem = uiState.items[pageIndex]
+
+                VideoPlayerItem(
+                    shortsItem = currentItem,
+                    isSelected = isSelected,
+                    onLikeClicked = { shortsViewModel.onLikeClicked(currentItem.id) },
+                    // (6) 🚨 '댓글' 아이콘 클릭 시 ViewModel 이벤트 호출
+                    onCommentIconClicked = { shortsViewModel.onCommentIconClicked(currentItem.id) }
+                )
+            }
+        }
+
+        // (7) 🚨 BottomSheet Composable
+        if (uiState.isCommentSheetVisible) {
+            ModalBottomSheet(
+                onDismissRequest = { shortsViewModel.onDismissCommentSheet() },
+                sheetState = sheetState
+            ) {
+                // (8) 🚨 BottomSheet 내부에 표시될 컨텐츠
+                CommentSheetContent(
+                    comments = uiState.comments,
+                    newCommentText = uiState.newCommentText,
+                    onNewCommentChanged = { shortsViewModel.onNewCommentTextChanged(it) },
+                    onSubmitComment = { shortsViewModel.onSubmitComment() },
+                    onDismiss = { shortsViewModel.onDismissCommentSheet() }
+                )
+            }
         }
     }
 }

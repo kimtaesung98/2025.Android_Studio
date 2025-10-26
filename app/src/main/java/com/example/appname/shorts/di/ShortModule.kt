@@ -9,7 +9,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
-
+import com.example.appname.shorts.domain.usecase.SubmitShortsCommentUseCase
+import com.example.appname.shorts.domain.usecase.GetShortsCommentsUseCase
 /**
  * [설계 의도 요약]
  * Hilt가 Shorts 모듈의 의존성을 주입(Inject)하는 방법을 정의합니다.
@@ -41,5 +42,16 @@ object ShortsModule {
     @Provides
     fun provideLikeShortsUseCase(repository: ShortsRepository): LikeShortsUseCase {
         return LikeShortsUseCase(repository)
+    }
+    // 🚨 (2) [New] GetShortsCommentsUseCase 레시피 추가
+    @Provides
+    fun provideGetShortsCommentsUseCase(repository: ShortsRepository): GetShortsCommentsUseCase {
+        return GetShortsCommentsUseCase(repository)
+    }
+
+    // 🚨 (3) [New] SubmitShortsCommentUseCase 레시피 추가
+    @Provides
+    fun provideSubmitShortsCommentUseCase(repository: ShortsRepository): SubmitShortsCommentUseCase {
+        return SubmitShortsCommentUseCase(repository)
     }
 }

@@ -104,5 +104,7 @@ dependencies {
 
     // (4) 🚨 ViewModel을 Hilt로 주입하기 위한 추가 라이브러리
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    // (1) 🚨 Jetpack DataStore (Preferences) 라이브러리 추가
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
 }
