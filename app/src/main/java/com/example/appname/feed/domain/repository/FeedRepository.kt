@@ -11,11 +11,11 @@ import kotlinx.coroutines.flow.Flow
  */
 interface FeedRepository {
 
-    /**
-     * 모든 피드 게시물 목록을 가져옵니다.
-     * @return Flow<List<Post>> - 데이터 변경을 실시간으로 감지할 수 있는 Flow 형태로 반환
-     */
     fun getPosts(): Flow<List<Post>>
 
-    // TODO: implement details (예: fun updateLike(postId: Int), fun submitComment(postId: Int, comment: String))
+    // 🚨 (1) [New] '좋아요' 토글 함수 뼈대 추가
+    suspend fun togglePostLike(postId: Int): Result<Boolean>
+
+    // 🚨 (2) [New] '댓글 제출' 함수 뼈대 추가
+    suspend fun submitComment(postId: Int, commentText: String): Result<Boolean>
 }

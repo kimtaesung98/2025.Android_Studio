@@ -1,8 +1,9 @@
-package com.example.appname.delivery.ui
+package com.example.appname.delivery.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.appname.delivery.domain.model.DeliveryRequest
+import com.example.appname.delivery.domain.usecase.SubmitDeliveryRequestUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -10,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import dagger.hilt.android.lifecycle.HiltViewModel // 🚨 (1)
+import javax.inject.Inject // 🚨 (1)
 // (1) UI 상태를 담을 데이터 클래스
 data class DeliveryUiState(
     val restaurantName: String = "",
@@ -18,13 +21,14 @@ data class DeliveryUiState(
 )
 
 // (2) AndroidX의 ViewModel을 상속받는 클래스
-class DeliveryViewModel : ViewModel() {
+@HiltViewModel
+class DeliveryViewModel @Inject constructor( // (3) 🚨 생성자에 @Inject 추가
+    private val submitDeliveryRequestUseCase: SubmitDeliveryRequestUseCase
+) : ViewModel() {
 
-    // (3) UI 상태를 외부에는 읽기 전용(StateFlow)으로, 내부에서는 수정 가능(MutableStateFlow)하도록 노출
     private val _uiState = MutableStateFlow(DeliveryUiState())
     val uiState = _uiState.asStateFlow()
 
-    // (1) UI 이벤트를 위한 SharedFlow 추가
     private val _eventFlow = MutableSharedFlow<String>()
     val eventFlow = _eventFlow.asSharedFlow()
 
@@ -49,29 +53,36 @@ class DeliveryViewModel : ViewModel() {
 
     fun submitDeliveryRequest() {
         val currentState = uiState.value
-        if (currentState.restaurantName.isBlank() || currentState.menu.isBlank() || currentState.deliveryAddress.isBlank()) {
-            sendEvent("모든 항목을 입력해주세요.")
-            return
-        }
 
-        // (2) UiState를 DeliveryRequest 모델로 변환
+        // 🚨 (3) 1단계의 유효성 검사 로직이 UseCase로 이동했으므로 여기서는 제거됨.
+
+        // (4) UiState를 Domain Model(DeliveryRequest)로 변환
         val requestData = DeliveryRequest(
             restaurant = currentState.restaurantName,
             menu = currentState.menu,
-            address = currentState.deliveryAddress,
-            requestTime = System.currentTimeMillis()
+            address = currentState.deliveryAddress
+            // requestTime 등은 UseCase나 Repository가 설정할 수 있음
         )
 
-        // TODO: 실제 서버에 'requestData'를 전송하는 로직
-        println("요청 데이터 생성 완료: ${requestData}")
+        // 🚨 (5) UseCase(suspend 함수)를 viewModelScope에서 호출
+        viewModelScope.launch {
+            val result = submitDeliveryRequestUseCase(requestData) // UseCase 호출
 
-        sendEvent("요청이 성공적으로 접수되었습니다.")
+            result.onSuccess {
+                // (6) 성공 시 UI 이벤트 발생
+                sendEvent("요청이 성공적으로 접수되었습니다.")
+                // TODO: 2단계 심화 - 요청 성공 시 입력 필드 초기화
+            }
+            result.onFailure { exception ->
+                // (7) 실패 시 UI 이벤트 발생
+                sendEvent(exception.message ?: "알 수 없는 오류가 발생했습니다.")
+            }
+        }
     }
+
     private fun sendEvent(message: String) {
-        // (5) 이벤트는 코루틴 스코프에서 발생시켜야 함
         viewModelScope.launch {
             _eventFlow.emit(message)
         }
     }
-
 }

@@ -40,4 +40,20 @@ class FeedRepositoryImpl : FeedRepository {
         // Retrofit API 호출이나 Room DB 쿼리 결과를 Flow로 반환해야 함.
         return flowOf(dummyPosts)
     }
+
+
+    // 🚨 (1) [New] '좋아요' 토글 함수 구현체 추가
+    override suspend fun togglePostLike(postId: Int): Result<Boolean> {
+        // TODO: implement details (API 호출)
+        println("FeedRepositoryImpl: Toggling like for post $postId (Simulation)")
+        // (임시) 2단계 '살 붙이기'에서는 dummyPosts의 isLiked를 직접 수정
+        return Result.success(true)
+    }
+
+    // 🚨 (2) [New] '댓글 제출' 함수 구현체 추가
+    override suspend fun submitComment(postId: Int, commentText: String): Result<Boolean> {
+        // TODO: implement details (API 호출)
+        println("FeedRepositoryImpl: Submitting comment '$commentText' for post $postId (Simulation)")
+        return Result.success(true)
+    }
 }

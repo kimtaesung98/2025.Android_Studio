@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.appname.ui.theme.AppnameTheme // (1) 테마 파일 import
+import dagger.hilt.android.AndroidEntryPoint
 
 // (2) 메인 진입점 Activity
 class MainActivity : ComponentActivity() {

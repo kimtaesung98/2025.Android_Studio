@@ -2,6 +2,11 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // (1) 🚨 Kapt 플러그인 (필수)
+    id("org.jetbrains.kotlin.kapt")
+
+    // (2) 🚨 Hilt 플러그인
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -93,4 +98,11 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.3.1") // 플레이어 UI 컨트롤러
 
 // ... 다른 라이브러리들 ...
+    // (3) 🚨 Hilt 의존성 추가
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
+
+    // (4) 🚨 ViewModel을 Hilt로 주입하기 위한 추가 라이브러리
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
 }

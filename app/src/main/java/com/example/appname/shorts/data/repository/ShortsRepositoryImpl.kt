@@ -1,4 +1,4 @@
-package com.example.appname.shorts.domain.data.repository
+package com.example.appname.shorts.data.repository
 
 import com.example.appname.shorts.domain.model.ShortsItem
 import com.example.appname.shorts.domain.repository.ShortsRepository

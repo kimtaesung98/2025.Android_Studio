@@ -17,10 +17,21 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.appname.R // R 클래스 접근을 위해 필요
-import com.example.appname.delivery.ui.DeliveryScreen
-import com.example.appname.feed.ui.FeedScreen
-import com.example.appname.shorts.ui.ShortsScreen
+import com.example.appname.delivery.ui.screen.DeliveryScreen
+import com.example.appname.feed.ui.screen.FeedScreen
+import com.example.appname.shorts.ui.screen.ShortsScreen
 
+import android.annotation.SuppressLint
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home // (기존)
+import androidx.compose.material.icons.filled.List // (기존)
+import androidx.compose.material.icons.filled.Person // 🚨 (1) '프로필' 아이콘 import
+import androidx.compose.material.icons.filled.PlayArrow // (기존)
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.compose.rememberNavController
+import com.example.appname.feed.ui.screen.FeedScreen
+import com.example.appname.shorts.ui.screen.ShortsScreen
+import com.example.appname.user.ui.screen.UserScreen // 🚨 (2) UserScreen import
 // (1) 네비게이션 경로와 아이콘, 라벨을 정의하는 Sealed Class
 sealed class BottomNavItem(
     val route: String,
@@ -32,16 +43,52 @@ sealed class BottomNavItem(
     object Shorts : BottomNavItem("shorts", R.drawable.ic_launcher_foreground, "쇼츠")
 }
 
-// (2) 메인 화면 Composable
+sealed class Screen(val route: String, val icon: ImageVector) {
+    object Delivery : Screen("delivery", Icons.Default.List)
+    object Feed : Screen("feed", Icons.Default.Home)
+    object Shorts : Screen("shorts", Icons.Default.PlayArrow)
+    object Profile : Screen("profile", Icons.Default.Person) // 👈 [New]
+}
+
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+    // (4) 🚨 4개의 탭 아이템
+    val items = listOf(
+        Screen.Delivery,
+        Screen.Feed,
+        Screen.Shorts,
+        Screen.Profile // 👈 [New]
+    )
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController = navController) }
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            NavigationGraph(navController = navController)
+        bottomBar = {
+            BottomNavigation {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
+                items.forEach { screen ->
+                    BottomNavigationItem(
+                        icon = { Icon(screen.icon, contentDescription = null) },
+                        label = { Text(screen.route) },
+                        selected = currentRoute == screen.route,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.startDestinationId)
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) {
+        NavHost(navController = navController, startDestination = Screen.Feed.route) {
+            composable(Screen.Delivery.route) { DeliveryScreen() }
+            composable(Screen.Feed.route) { FeedScreen() }
+            composable(Screen.Shorts.route) { ShortsScreen() }
+            composable(Screen.Profile.route) { UserScreen() } // 👈 (5) 🚨 NavHost에 UserScreen 연결
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.example.appname.feed.ui
+package com.example.appname.feed.ui.screen
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -26,10 +26,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appname.feed.domain.model.Post
 
+import androidx.hilt.navigation.compose.hiltViewModel // (1) 🚨 hiltViewModel import
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.example.appname.feed.ui.viewmodel.FeedViewModel
 @Composable
-fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {
+fun FeedScreen(feedViewModel: FeedViewModel = hiltViewModel()) {
     val uiState by feedViewModel.uiState.collectAsState()
-
     // (1) 스크롤 가능한 목록
     LazyColumn(
         modifier = Modifier.Companion.fillMaxSize(),

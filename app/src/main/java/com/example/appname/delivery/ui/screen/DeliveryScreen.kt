@@ -1,4 +1,4 @@
-package com.example.appname.delivery.ui
+package com.example.appname.delivery.ui.screen
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -31,14 +31,21 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.appname.delivery.ui.DeliveryViewModel
+import com.example.appname.delivery.data.repository.DeliveryRepositoryImpl
+import com.example.appname.delivery.domain.usecase.SubmitDeliveryRequestUseCase
+import com.example.appname.delivery.ui.viewmodel.DeliveryViewModel
 import com.example.appname.ui.theme.AppnameTheme
 import kotlinx.coroutines.flow.collectLatest
 
+import androidx.hilt.navigation.compose.hiltViewModel // (1) 🚨 hiltViewModel import
+import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun DeliveryScreen(
-    deliveryViewModel: DeliveryViewModel = viewModel()
+    // 🚨 (2) viewModel() 호출 방식을 Factory를 사용하도록 변경
+    deliveryViewModel: DeliveryViewModel = hiltViewModel()
 ) {
     val uiState by deliveryViewModel.uiState.collectAsState()
     val context = LocalContext.current
