@@ -43,39 +43,52 @@ sealed class BottomNavItem(
     object Shorts : BottomNavItem("shorts", R.drawable.ic_launcher_foreground, "쇼츠")
 }
 
-sealed class Screen(val route: String, val icon: ImageVector) {
-    object Delivery : Screen("delivery", Icons.Default.List)
-    object Feed : Screen("feed", Icons.Default.Home)
-    object Shorts : Screen("shorts", Icons.Default.PlayArrow)
-    object Profile : Screen("profile", Icons.Default.Person) // 👈 [New]
+// (2) 🚨 탭에 표시될 화면들
+sealed class TabScreen(val route: String, val icon: ImageVector, val title: String) {
+    object Delivery : TabScreen("delivery", Icons.Default.List, "배달")
+    object Feed : TabScreen("feed", Icons.Default.Home, "피드")
+    object Shorts : TabScreen("shorts", Icons.Default.PlayArrow, "쇼츠")
+    object Profile : TabScreen("profile", Icons.Default.Person, "프로필")
+}
+
+// (3) 🚨 네비게이션 그래프(흐름) 정의
+object NavGraph {
+    const val AUTH_GRAPH = "auth_graph" // 로그인 흐름
+    const val MAIN_GRAPH = "main_graph" // 메인 탭 흐름
+}
+
+object AuthScreen {
+    const val LOGIN = "login" // 로그인 화면 라우트
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun MainScreen() {
-    val navController = rememberNavController()
-    // (4) 🚨 4개의 탭 아이템
+fun MainScreen(
+    // (4) 🚨 MainScreen은 이제 메인 탭 NavHost를 위한 NavController를 받습니다.
+    mainNavController: NavHostController = rememberNavController()
+) {
+    // (5) 🚨 4개의 탭 아이템
     val items = listOf(
-        Screen.Delivery,
-        Screen.Feed,
-        Screen.Shorts,
-        Screen.Profile // 👈 [New]
+        TabScreen.Delivery,
+        TabScreen.Feed,
+        TabScreen.Shorts,
+        TabScreen.Profile
     )
 
     Scaffold(
         bottomBar = {
             BottomNavigation {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val navBackStackEntry by mainNavController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 items.forEach { screen ->
                     BottomNavigationItem(
                         icon = { Icon(screen.icon, contentDescription = null) },
-                        label = { Text(screen.route) },
+                        label = { Text(screen.title) }, // 🚨 route 대신 title 사용
                         selected = currentRoute == screen.route,
                         onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.startDestinationId)
+                            mainNavController.navigate(screen.route) {
+                                popUpTo(mainNavController.graph.startDestinationId)
                                 launchSingleTop = true
                             }
                         }
@@ -84,11 +97,12 @@ fun MainScreen() {
             }
         }
     ) {
-        NavHost(navController = navController, startDestination = Screen.Feed.route) {
-            composable(Screen.Delivery.route) { DeliveryScreen() }
-            composable(Screen.Feed.route) { FeedScreen() }
-            composable(Screen.Shorts.route) { ShortsScreen() }
-            composable(Screen.Profile.route) { UserScreen() } // 👈 (5) 🚨 NavHost에 UserScreen 연결
+        // (6) 🚨 NavHost가 MainScreen 내부로 이동 (메인 탭 전용)
+        NavHost(navController = mainNavController, startDestination = TabScreen.Feed.route) {
+            composable(TabScreen.Delivery.route) { DeliveryScreen() }
+            composable(TabScreen.Feed.route) { FeedScreen() }
+            composable(TabScreen.Shorts.route) { ShortsScreen() }
+            composable(TabScreen.Profile.route) { UserScreen() } // 👈 (7) UserScreen이 로그인/프로필 역할 겸임
         }
     }
 }

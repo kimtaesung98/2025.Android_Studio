@@ -28,7 +28,8 @@ import androidx.compose.ui.graphics.Color
 @Composable
 fun UserScreen(
     // (1) 🚨 Hilt를 통해 ViewModel을 자동으로 주입받음
-    userViewModel: UserViewModel = hiltViewModel()
+    userViewModel: UserViewModel = hiltViewModel(),
+    onLoginSuccess: () -> Unit = {}
 ) {
     val uiState by userViewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -39,6 +40,11 @@ fun UserScreen(
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
+    LaunchedEffect(uiState.loginUser) {
+        if (uiState.loginUser != null) {
+            onLoginSuccess() // 👈 메인 그래프로 이동!
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -47,18 +53,15 @@ fun UserScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // (3) 🚨 로그인 성공/실패에 따른 UI 분기
+// 🚨 (2) [New] 로그인 상태가 변경되면 콜백 호출
         if (uiState.loginUser != null) {
-            // 로그인 성공 시
+            // (3) 🚨 '프로필' 탭에서 보여줄 UI (로그아웃 버튼 등)
             Text(text = "${uiState.loginUser!!.nickname}님, 환영합니다.")
             Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = { userViewModel.onLogoutClicked() },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray) // 색상 변경
-            ) {
-                Text("로그아웃")
-            }
+                onClick = { /* (4) 🚨 로그아웃 콜백도 필요함 */ },
+                // ...
+            ) { Text("로그아웃") }
         } else {
             // 로그인 전
             OutlinedTextField(

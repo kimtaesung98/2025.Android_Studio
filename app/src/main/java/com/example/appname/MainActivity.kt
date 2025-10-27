@@ -1,48 +1,97 @@
-package com.examplet.appname
+package com.example.appname
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels // 🚨 (1) [New]
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.appname.ui.theme.AppnameTheme // (1) 테마 파일 import
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
+import androidx.navigation.compose.rememberNavController
+import com.example.appname.ui.screen.main.MainScreen
+import com.example.appname.ui.screen.main.MainViewModel // 🚨 (1) [New]
+import com.example.appname.ui.screen.main.NavGraph // 🚨 (1) [New]
+import com.example.appname.ui.screen.main.AuthScreen // 🚨 (1) [New]
+import com.example.appname.ui.screen.main.NavigationState // 🚨 (1) [New]
+import com.example.appname.ui.theme.AppnameTheme
+import com.example.appname.user.ui.screen.UserScreen // 🚨 (1) [New]
 import dagger.hilt.android.AndroidEntryPoint
 
-// (2) 메인 진입점 Activity
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    // (2) 🚨 Activity 스코프의 MainViewModel 생성
+    private val mainViewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // (3) 최상위 테마 적용
             AppnameTheme {
-                // (4) 앱 전체 화면의 기본 배경 정의
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    // (5) 여기서부터 메인 Navigation Host를 호출합니다.
-                    AppMainScreen()
+                // (3) 🚨 NavState에 따라 UI 분기
+                val navState by mainViewModel.navState.collectAsState()
+
+                when (navState) {
+                    NavigationState.Loading -> {
+                        // (4) 🚨 앱 부팅 시 로딩 화면
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    NavigationState.LoggedIn -> {
+                        // (5) 🚨 로그인됨 -> 메인 그래프
+                        RootNavigationGraph(startDestination = NavGraph.MAIN_GRAPH)
+                    }
+                    NavigationState.LoggedOut -> {
+                        // (6) 🚨 로그아웃됨 -> 인증 그래프
+                        RootNavigationGraph(startDestination = NavGraph.AUTH_GRAPH)
+                    }
                 }
             }
         }
     }
 }
 
-// (6) 앱의 최상위 Composeable 함수 (아직 내용은 비어있음)
+// (7) 🚨 [New] 최상위 네비게이션 그래프 Composable
 @Composable
-fun AppMainScreen() {
-    // 여기에 Bottom Navigation과 Navigation Host가 들어갈 예정
-}
+fun RootNavigationGraph(startDestination: String) {
+    val navController = rememberNavController()
 
-// (7) 미리보기 함수
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AppnameTheme {
-        AppMainScreen()
+    NavHost(
+        navController = navController,
+        startDestination = startDestination // 👈 (8) MainViewModel이 결정한 시작점
+    ) {
+        // (9) 🚨 인증 그래프 (로그인 화면)
+        navigation(
+            startDestination = AuthScreen.LOGIN,
+            route = NavGraph.AUTH_GRAPH
+        ) {
+            composable(AuthScreen.LOGIN) {
+                // (10) 로그인 성공 시 -> 메인 그래프로 이동하고 스택 비우기
+                UserScreen(
+                    onLoginSuccess = {
+                        navController.navigate(NavGraph.MAIN_GRAPH) {
+                            popUpTo(NavGraph.AUTH_GRAPH) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            // TODO: 회원가입 화면 등 추가
+        }
+
+        // (11) 🚨 메인 그래프 (탭 화면)
+        composable(NavGraph.MAIN_GRAPH) {
+            MainScreen() // 👈 탭 + 탭 NavHost가 포함된 화면
+        }
     }
 }
