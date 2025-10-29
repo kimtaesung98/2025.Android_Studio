@@ -42,6 +42,9 @@ android {
     buildFeatures {
         compose = true
     }
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
@@ -106,5 +109,15 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     // (1) 🚨 Jetpack DataStore (Preferences) 라이브러리 추가
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    // (2) 🚨 Retrofit2 (네트워크 클라이언트)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    // (3) 🚨 Moshi (JSON <-> Kotlin 변환기)
+    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
+    kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.0") // Moshi 코드 생성을 위함
+
+    // (4) 🚨 (선택적이지만 권장) 네트워크 통신 로깅
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 
 }
