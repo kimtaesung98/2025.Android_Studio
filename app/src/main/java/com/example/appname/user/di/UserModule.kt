@@ -13,7 +13,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext // 🚨 (1) [New]
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
-
+import com.example.appname.user.data.remote.api.UserApi
+import retrofit2.Retrofit
 /**
  * [설계 의도 요약]
  * Hilt가 User 모듈의 의존성을 주입(Inject)하는 방법을 정의합니다.
@@ -48,5 +49,11 @@ object UserModule {
     @Singleton
     fun provideUserRepository(prefs: UserPreferencesRepository): UserRepository {
         return UserRepositoryImpl(prefs)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi {
+        return retrofit.create(UserApi::class.java)
     }
 }

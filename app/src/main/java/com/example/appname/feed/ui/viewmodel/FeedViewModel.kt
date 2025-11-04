@@ -18,8 +18,6 @@ import kotlinx.coroutines.launch // launch import
 import javax.inject.Inject
 import com.example.appname.feed.domain.model.Comment
 import com.example.appname.feed.domain.usecase.GetCommentsUseCase
-
-
 /**
  * [설계 의도]
  * 2단계: ViewModel은 UseCase에 의존하며, UI 상태 관리(StateFlow)에만 집중합니다.

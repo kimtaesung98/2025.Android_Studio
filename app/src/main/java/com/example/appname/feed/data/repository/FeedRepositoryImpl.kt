@@ -17,6 +17,9 @@ import javax.inject.Inject
  * FeedRepository 인터페이스의 실제 구현체입니다.
  * '어떻게' 데이터를 가져올지(네트워크, DB)를 여기서 결정합니다.
  * 2단계 '살 붙이기' 단계에서 여기에 Retrofit 또는 Room 로직이 추가됩니다.
+ *
+ * [설계 의도 요약]
+ * 3단계(SSOT): Hilt로부터 FeedApi(Network)와 PostDao(DB)를 주입받습니다.
  */
 class FeedRepositoryImpl @Inject constructor(
     private val feedApi: FeedApi, // (1) 🚨 Hilt가 Retrofit API 주입

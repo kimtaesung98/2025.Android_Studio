@@ -1,5 +1,8 @@
 package com.example.appname.di
 
+// (1) 🚨 올바른 BuildConfig Import
+// 이 경로는 사용자님의 applicationId(com.example.appname)와 일치해야 합니다.
+// 'okhttp3.BuildConfig' 등 다른 것을 선택하면 안 됩니다.
 import com.example.appname.BuildConfig
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
