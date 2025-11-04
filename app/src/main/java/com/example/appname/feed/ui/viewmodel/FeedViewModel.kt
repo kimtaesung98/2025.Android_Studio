@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-
+import com.example.appname.feed.domain.usecase.RefreshPostsUseCase
 import com.example.appname.feed.domain.usecase.LikePostUseCase // 🚨 (1)
 import com.example.appname.feed.domain.usecase.SubmitCommentUseCase // 🚨 (1)
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +40,8 @@ class FeedViewModel @Inject constructor(
     private val getFeedPostsUseCase: GetFeedPostsUseCase,
     private val likePostUseCase: LikePostUseCase,
     private val submitCommentUseCase: SubmitCommentUseCase,
-    private val getCommentsUseCase: GetCommentsUseCase // 🚨 (3) [New] UseCase 주입
+    private val getCommentsUseCase: GetCommentsUseCase,
+    private val refreshPostsUseCase: RefreshPostsUseCase // 🚨 (2) [New] Hilt 주입
 ) : ViewModel() {
 
     // region 1. UI 상태 관리
@@ -49,7 +50,7 @@ class FeedViewModel @Inject constructor(
     // endregion
 
     init {
-        // 3. ViewModel이 생성될 때, UseCase를 통해 데이터 로드를 시작합니다.
+        // 🚨 (3) [Update] loadPosts() 함수가 이제 2가지 일을 함
         loadPosts()
     }
 
@@ -60,16 +61,19 @@ class FeedViewModel @Inject constructor(
      * Flow를 구독(collect)하여 UI 상태를 업데이트합니다.
      */
     private fun loadPosts() {
-        // 4. UseCase는 Flow를 반환하므로 viewModelScope에서 수집(collect)합니다.
-        getFeedPostsUseCase() // 'invoke()'는 생략 가능
-            .onEach { posts -> // 5. UseCase가 성공적으로 데이터를 가져오면
+        // (4) 🚨 [SSOT 1] Room DB를 즉시 구독 시작 (UI가 캐시된 데이터를 즉시 봄)
+        getFeedPostsUseCase() // (GetFeedPostsUseCase는 Room Flow를 반환)
+            .onEach { posts ->
                 _uiState.update { it.copy(posts = posts) }
             }
-            .catch { e -> // 6. 데이터 로드 중 에러 발생 시
-                // TODO: 2단계 심화 - 에러 상태를 UiState에 포함시켜 UI에 표시
-                println("Error loading posts: ${e.message}")
-            }
-            .launchIn(viewModelScope) // 7. viewModelScope에서 Flow 스트림 실행
+            .catch { /* ... Room 읽기 오류 처리 ... */ }
+            .launchIn(viewModelScope)
+
+        // (5) 🚨 [SSOT 2] 네트워크 갱신 '요청' (백그라운드 실행)
+        viewModelScope.launch {
+            refreshPostsUseCase() // (Retrofit -> Room 갱신)
+            // (갱신이 완료되면 4번의 Flow가 자동으로 새 데이터를 감지함)
+        }
     }
     private fun loadComments(postId: Int) {
         getCommentsUseCase(postId)

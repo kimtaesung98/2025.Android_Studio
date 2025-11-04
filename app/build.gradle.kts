@@ -119,5 +119,8 @@ dependencies {
 
     // (4) 🚨 (선택적이지만 권장) 네트워크 통신 로깅
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
-
+    // (1) 🚨 Room 라이브러리 추가
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1") // 코루틴(Flow, suspend) 지원
+    kapt("androidx.room:room-compiler:2.6.1") // Room 코드 생성기
 }

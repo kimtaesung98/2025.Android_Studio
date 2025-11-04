@@ -11,6 +11,10 @@ import javax.inject.Singleton
 import com.example.appname.feed.domain.usecase.LikePostUseCase
 import com.example.appname.feed.domain.usecase.SubmitCommentUseCase
 import com.example.appname.feed.domain.usecase.GetCommentsUseCase
+import com.example.appname.feed.data.local.dao.PostDao
+import com.example.appname.feed.data.remote.api.FeedApi
+import retrofit2.Retrofit
+import com.example.appname.feed.domain.usecase.RefreshPostsUseCase
 /**
  * [설계 의도 요약]
  * Hilt가 Feed 모듈의 의존성을 주입(Inject)하는 방법을 정의합니다.
@@ -24,10 +28,12 @@ object FeedModule {
      * FeedRepository(인터페이스)를 요청하면 FeedRepositoryImpl(구현체)을 제공합니다.
      */
     @Provides
-    @Singleton // 앱 전체에서 하나의 인스턴스만 사용
-    fun provideFeedRepository(): FeedRepository {
-        // TODO: 2단계 심화 - Retrofit/Room 객체를 주입받아 Impl에 전달해야 함
-        return FeedRepositoryImpl()
+    @Singleton
+    fun provideFeedRepository(
+        feedApi: FeedApi,
+        postDao: PostDao
+    ): FeedRepository {
+        return FeedRepositoryImpl(feedApi, postDao)
     }
 
     /**
@@ -53,4 +59,15 @@ object FeedModule {
     fun provideGetCommentsUseCase(repository: FeedRepository): GetCommentsUseCase {
         return GetCommentsUseCase(repository)
     }
+
+    @Provides
+    @Singleton
+    fun provideFeedApi(retrofit: Retrofit): FeedApi {
+        return retrofit.create(FeedApi::class.java)
+    }
+    @Provides
+    fun provideRefreshPostsUseCase(repository: FeedRepository): RefreshPostsUseCase {
+        return RefreshPostsUseCase(repository)
+    }
+
 }

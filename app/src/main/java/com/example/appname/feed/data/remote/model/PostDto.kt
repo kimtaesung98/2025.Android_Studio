@@ -3,7 +3,7 @@ package com.example.appname.feed.data.remote.model
 import com.example.appname.feed.domain.model.Post // (1) 🚨 Domain 모델을 import (변환용)
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
-
+import com.example.appname.feed.data.local.model.PostEntity
 /**
  * [설계 의도 요약]
  * 서버 API의 'posts' 엔드포인트 응답과 1:1로 매칭되는 데이터 전송 객체(DTO)입니다.
@@ -40,6 +40,17 @@ fun PostDto.toDomainModel(): Post {
         // (4) 🚨 DTO의 imageUrl(String)을 Domain의 imageRes(Int)로 변환
         // (실제 앱에서는 Coil/Glide 라이브러리가 이 URL을 사용해 이미지를 로드함)
         // (임시로 더미 drawable을 사용)
+        imageRes = com.example.appname.R.drawable.ic_launcher_background,
+        isLiked = this.isLiked
+    )
+}
+
+fun PostDto.toEntity(): PostEntity { // 🚨 (2) [New]
+    return PostEntity(
+        id = this.id,
+        author = this.author,
+        content = this.content,
+        // (임시) DTO의 imageUrl(String)을 Entity의 imageRes(Int)로 변환
         imageRes = com.example.appname.R.drawable.ic_launcher_background,
         isLiked = this.isLiked
     )
