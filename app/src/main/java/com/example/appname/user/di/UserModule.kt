@@ -47,8 +47,11 @@ object UserModule {
     // 🚨 (3) [Update] UserRepositoryImpl이 이제 DataStore 래퍼를 필요로 함
     @Provides
     @Singleton
-    fun provideUserRepository(prefs: UserPreferencesRepository): UserRepository {
-        return UserRepositoryImpl(prefs)
+    fun provideUserRepository(
+        userApi: UserApi, // 👈 Hilt가 제공
+        prefs: UserPreferencesRepository // 👈 Hilt가 제공
+    ): UserRepository {
+        return UserRepositoryImpl(userApi, prefs)
     }
 
     @Provides

@@ -1,18 +1,26 @@
 package com.example.appname.shorts.data.repository
 
+import com.example.appname.shorts.data.local.dao.ShortsDao
 import com.example.appname.shorts.domain.model.ShortsComment // 🚨 (1) [New]
 import com.example.appname.shorts.domain.model.ShortsItem
 import com.example.appname.shorts.domain.repository.ShortsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import javax.inject.Inject // 🚨 (1) [New]
-
+import com.example.appname.shorts.data.local.model.toDomainModel
+import com.example.appname.shorts.data.local.model.toEntity
+import com.example.appname.shorts.data.remote.api.ShortsApi
+import com.example.appname.shorts.data.remote.model.CommentRequestDto
+import kotlinx.coroutines.flow.map
 /**
  * [설계 의도 요약]
  * ShortsRepository 인터페이스의 실제 구현체입니다.
  * 2단계 '살 붙이기' 단계에서 여기에 Retrofit API 또는 Room 로직이 추가됩니다.
  */
-class ShortsRepositoryImpl @Inject constructor() : ShortsRepository {
+abstract class ShortsRepositoryImpl @Inject constructor( /** 추상화를 해야되는 이유?*/
+    private val shortsApi: ShortsApi, // (1) 🚨 Hilt가 Retrofit API 주입
+    private val shortsDao: ShortsDao  // (2) 🚨 Hilt가 Room DAO 주입
+) : ShortsRepository {
 
     // (1) 임시 더미 데이터 (원래 ViewModel에 있던 것)
     // 2단계에서는 이 데이터가 API나 DB에서 와야 함.

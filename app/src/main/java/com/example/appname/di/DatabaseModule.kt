@@ -12,20 +12,22 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.example.appname.shorts.data.local.dao.ShortsDao // 🚨 (1) [New]
+import com.example.appname.shorts.data.local.model.ShortsEntity // 🚨 (1) [New]
 
 /**
  * [설계 의도 요약]
  * Room Database의 추상 클래스입니다.
  * DB 버전 관리 및 Entity/Dao 등록을 담당합니다.
  */
-// (1) 🚨 DB 버전 1, PostEntity 테이블 포함
-@Database(entities = [PostEntity::class /* TODO: 다른 Entity 추가 */], version = 1)
+@Database(entities = [PostEntity::class, ShortsEntity::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
-    // (2) 🚨 Hilt가 Dao를 주입할 수 있도록 추상 함수 제공
-    abstract fun postDao(): PostDao
-    // TODO: abstract fun shortsDao(): ShortsDao
-}
 
+    abstract fun postDao(): PostDao
+
+    // (3) 🚨 [New] Hilt가 Dao를 주입할 수 있도록 추상 함수 제공
+    abstract fun shortsDao(): ShortsDao
+}
 /**
  * [설계 의도 요약]
  * Room Database 및 Dao를 Hilt가 주입할 수 있도록 '레시피'를 제공합니다.
@@ -55,5 +57,11 @@ object DatabaseModule {
     @Singleton
     fun providePostDao(appDatabase: AppDatabase): PostDao {
         return appDatabase.postDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideShortsDao(appDatabase: AppDatabase): ShortsDao {
+        return appDatabase.shortsDao()
     }
 }

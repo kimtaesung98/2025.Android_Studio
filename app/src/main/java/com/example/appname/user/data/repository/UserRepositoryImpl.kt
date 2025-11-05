@@ -1,17 +1,41 @@
 package com.example.appname.user.data.repository
 
 import com.example.appname.user.data.local.UserPreferencesRepository
+import com.example.appname.user.data.remote.api.UserApi
+import com.example.appname.user.data.remote.model.LoginRequestDto
+import com.example.appname.user.data.remote.model.toDomainModel
 import com.example.appname.user.domain.model.User
 import com.example.appname.user.domain.repository.UserRepository
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+
 class UserRepositoryImpl @Inject constructor( // 🚨 (2) [Update] 생성자 주입
+    private val userApi: UserApi,
     private val userPreferences: UserPreferencesRepository
 ) : UserRepository {
 
     override suspend fun login(email: String, password: String): Result<User> {
-        // ... (기존 API 호출 시뮬레이션) ...
+        return try {
+            val requestDto = LoginRequestDto(email, password)
+            val response = userApi.login(requestDto) // 👈 API 호출
+
+            if (response.isSuccessful) {
+                val userDto = response.body()
+                if (userDto != null) {
+                    // (3) 🚨 로그인 성공: DataStore에 '서버가 준 토큰' 저장
+                    saveAuthToken(userDto.token)
+                    Result.success(userDto.toDomainModel())
+                } else {
+                    Result.failure(Exception("로그인 응답 없음"))
+                }
+            } else {
+                Result.failure(Exception("로그인 실패 (ID/PW 불일치)"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e) // (예: 인터넷 없음)
+        }
         delay(1000)
         val dummyUser = User(id = "uid-123", email = email, nickname = "테스트 유저")
 
@@ -22,7 +46,23 @@ class UserRepositoryImpl @Inject constructor( // 🚨 (2) [Update] 생성자 주
     }
 
     override suspend fun logout(): Result<Boolean> {
-        // ... (기존 로그아웃 시뮬레이션) ...
+        return try {
+            val token = getAuthTokenFlow().first() // 1. 현재 토큰 가져오기
+            if (token.isNullOrBlank()) return Result.success(true) // 이미 로그아웃됨
+
+            val authHeader = "Bearer $token"
+            val response = userApi.logout(authHeader) // 👈 API 호출
+
+            if (response.isSuccessful) {
+                saveAuthToken(null) // 2. API 성공 시 로컬 토큰 삭제
+                Result.success(true)
+            } else {
+                Result.failure(Exception("로그아웃 API 실패"))
+            }
+        } catch (e: Exception) {
+            saveAuthToken(null) // API가 실패해도 로컬 토큰은 삭제 (강제 로그아웃)
+            Result.failure(e)
+        }
 
         // 🚨 (4) [New] 로그아웃 성공 시, DataStore에서 토큰 삭제
         saveAuthToken(null)

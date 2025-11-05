@@ -11,6 +11,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import com.example.appname.shorts.domain.usecase.SubmitShortsCommentUseCase
 import com.example.appname.shorts.domain.usecase.GetShortsCommentsUseCase
+import com.example.appname.shorts.data.local.dao.`ShortsDao.kt`
 /**
  * [설계 의도 요약]
  * Hilt가 Shorts 모듈의 의존성을 주입(Inject)하는 방법을 정의합니다.
