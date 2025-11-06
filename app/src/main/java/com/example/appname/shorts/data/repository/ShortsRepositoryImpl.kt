@@ -12,12 +12,15 @@ import com.example.appname.shorts.data.local.model.toEntity
 import com.example.appname.shorts.data.remote.api.ShortsApi
 import com.example.appname.shorts.data.remote.model.CommentRequestDto
 import kotlinx.coroutines.flow.map
+import com.example.appname.shorts.data.local.model.toDomainModel
+import com.example.appname.shorts.data.local.model.toEntity
+import kotlinx.coroutines.flow.map
 /**
  * [설계 의도 요약]
  * ShortsRepository 인터페이스의 실제 구현체입니다.
  * 2단계 '살 붙이기' 단계에서 여기에 Retrofit API 또는 Room 로직이 추가됩니다.
  */
-abstract class ShortsRepositoryImpl @Inject constructor( /** 추상화를 해야되는 이유?*/
+class ShortsRepositoryImpl @Inject constructor( /** 추상화를 해야되는 이유?*/
     private val shortsApi: ShortsApi, // (1) 🚨 Hilt가 Retrofit API 주입
     private val shortsDao: ShortsDao  // (2) 🚨 Hilt가 Room DAO 주입
 ) : ShortsRepository {
@@ -48,38 +51,66 @@ abstract class ShortsRepositoryImpl @Inject constructor( /** 추상화를 해야
         ShortsComment(id = "sc2", shortsId = 1, author = "Commenter", content = "재밌어요 ㅎㅎ")
     )
 
-    // 🚨 (2) [New] '댓글 목록' 가져오기 함수 구현체
-    override fun getComments(shortsId: Int): Flow<List<ShortsComment>> {
-        // TODO: API 또는 Room에서 shortsId에 맞는 댓글 필터링
-        val commentsForShorts = dummyComments.filter { it.shortsId == shortsId }
-        return flowOf(commentsForShorts)
-    }
-
-    // 🚨 (3) [New] '댓글 제출' 함수 구현체
-    override suspend fun submitComment(shortsId: Int, commentText: String): Result<Boolean> {
-        // TODO: API로 댓글 제출
-        dummyComments.add(
-            ShortsComment(
-                id = "sc${dummyComments.size + 1}",
-                shortsId = shortsId,
-                author = "NewUser", // (임시) 'User' 모듈의 로그인 정보 사용 필요
-                content = commentText
-            )
-        )
-        return Result.success(true)
-    }
 
     override fun getShortsItems(): Flow<List<ShortsItem>> {
-        // TODO: implement details
-        return flowOf(dummyItems)
+        return shortsDao.getShortsItems().map { entityList ->
+            entityList.map { it.toDomainModel() }
+        }
     }
 
-    override suspend fun toggleLikeState(itemId: Int): Result<Boolean> {
-        // TODO: implement details
-        // (임시) 1단계에서는 메모리상의 데이터를 직접 수정 (2단계에서는 API 호출)
-        dummyItems = dummyItems.map {
-            if (it.id == itemId) it.copy(isLiked = !it.isLiked) else it
+    // (4) 🚨 [New] 네트워크 갱신 로직
+    override suspend fun refreshShortsItems(): Result<Boolean> {
+        return try {
+            val response = shortsApi.getShorts() // 1. Retrofit API 호출
+            if (response.isSuccessful) {
+                val dtoList = response.body() ?: emptyList()
+                val entityList = dtoList.map { it.toEntity() } // 2. DTO -> Entity
+                shortsDao.clearShortsItems() // 3. Room 갱신
+                shortsDao.insertShortsItems(entityList)
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Shorts 네트워크 오류"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
-        return Result.success(true)
+    }
+
+    // (5) 🚨 [Update] '좋아요' 로직: API 호출로 변경
+    override suspend fun toggleLikeState(itemId: Int): Result<Boolean> {
+        return try {
+            val response = shortsApi.likeShort(itemId)
+            if (response.isSuccessful) {
+                // TODO: 3단계 심화 - 성공 시 Room DB의 'isLiked' 상태도 갱신
+                Result.success(true)
+            } else {
+                Result.failure(Exception("좋아요 API 오류"))
+            }
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    // (6) 🚨 [Update] '댓글' 로직: API 호출로 변경 (Room 캐시 미사용)
+    override fun getComments(shortsId: Int): Flow<List<ShortsComment>> {
+        // (단순화) 이 부분은 SSOT 없이, 매번 API를 호출하는 Flow로 임시 구현
+        return kotlinx.coroutines.flow.flow {
+            val response = shortsApi.getComments(shortsId)
+            if(response.isSuccessful) {
+                val dtoList = response.body() ?: emptyList()
+                // (임시) DTO -> Domain 변환 (DTO와 Domain이 동일한 것으로 가정)
+                val domainList = dtoList.map { ShortsComment(it.id, shortsId, it.author, it.content) }
+                emit(domainList)
+            } else {
+                emit(emptyList())
+            }
+        }
+    }
+
+    // (7) 🚨 [Update] '댓글 제출' 로직: API 호출로 변경
+    override suspend fun submitComment(shortsId: Int, commentText: String): Result<Boolean> {
+        return try {
+            val requestDto = CommentRequestDto(content = commentText)
+            val response = shortsApi.submitComment(shortsId, requestDto)
+            Result.success(response.isSuccessful)
+        } catch (e: Exception) { Result.failure(e) }
     }
 }

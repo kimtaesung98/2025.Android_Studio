@@ -1,25 +1,41 @@
 package com.example.appname.delivery.data.repository
 
+import com.example.appname.delivery.data.remote.api.DeliveryApi
+import com.example.appname.delivery.data.remote.model.DeliveryRequestDto
 import com.example.appname.delivery.domain.model.DeliveryRequest
 import com.example.appname.delivery.domain.repository.DeliveryRepository
+import javax.inject.Inject
 
 /**
  * [설계 의도 요약]
- * DeliveryRepository 인터페이스의 실제 구현체입니다.
- * 2단계 '살 붙이기' 단계에서 여기에 Retrofit API 호출 로직이 추가됩니다.
+ * 3단계(Retrofit): Hilt로부터 DeliveryApi(Network)를 주입받습니다.
  */
-class DeliveryRepositoryImpl : DeliveryRepository {
+class DeliveryRepositoryImpl @Inject constructor(
+    private val deliveryApi: DeliveryApi // (1) 🚨 Hilt가 Retrofit API 주입
+) : DeliveryRepository {
 
     /**
-     * 배달 요청 제출 로직의 실제 구현
+     * (2) 🚨 [Update] 'submitRequest' 로직: API 호출로 변경
      */
     override suspend fun submitRequest(request: DeliveryRequest): Result<Boolean> {
-        // TODO: implement details
-        // 2단계 '살 붙이기' 에서는 이 부분에
-        // Retrofit API 호출 코드를 작성합니다.
+        return try {
+            // (3) Domain Model -> DTO 변환
+            val requestDto = DeliveryRequestDto(
+                restaurant = request.restaurant,
+                menu = request.menu,
+                address = request.address
+            )
 
-        // (임시) 1단계에서는 무조건 성공했다고 가정
-        println("Repository: ${request} 요청 수신. (네트워크 요청 시뮬레이션)")
-        return Result.success(true)
+            val response = deliveryApi.submitDelivery(requestDto) // 👈 API 호출
+
+            if (response.isSuccessful && response.body() != null) {
+                // (4) 서버가 성공적으로 주문을 생성함
+                Result.success(true)
+            } else {
+                Result.failure(Exception("주문 접수 실패: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e) // (예: 인터넷 없음)
+        }
     }
 }

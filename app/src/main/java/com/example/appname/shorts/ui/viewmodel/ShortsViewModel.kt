@@ -18,6 +18,7 @@ import javax.inject.Inject // 🚨 (1)
 import com.example.appname.shorts.domain.usecase.SubmitShortsCommentUseCase
 import com.example.appname.shorts.domain.model.ShortsComment // 🚨 (1) [New]
 import com.example.appname.shorts.domain.usecase.GetShortsCommentsUseCase
+import com.example.appname.shorts.domain.usecase.RefreshShortsUseCase
 data class ShortsUiState(
     val items: List<ShortsItem> = emptyList(),
     val isCommentSheetVisible: Boolean = false, // BottomSheet 표시 여부
@@ -29,9 +30,10 @@ data class ShortsUiState(
 class ShortsViewModel @Inject constructor(
     private val getShortsUseCase: GetShortsUseCase,
     private val likeShortsUseCase: LikeShortsUseCase,
-    private val getShortsCommentsUseCase: GetShortsCommentsUseCase, // 🚨 (3) [New]
-    private val submitShortsCommentUseCase: SubmitShortsCommentUseCase // 🚨 (3) [New]
-) : ViewModel(){
+    private val getShortsCommentsUseCase: GetShortsCommentsUseCase,
+    private val submitShortsCommentUseCase: SubmitShortsCommentUseCase,
+    private val refreshShortsUseCase: RefreshShortsUseCase // 🚨 [New] Hilt 주입
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ShortsUiState())
     val uiState = _uiState.asStateFlow()
@@ -54,6 +56,10 @@ class ShortsViewModel @Inject constructor(
                 println("Error loading shorts: ${e.message}")
             }
             .launchIn(viewModelScope)
+        // (2) 🚨 [SSOT 2] 네트워크 갱신 '요청'
+        viewModelScope.launch {
+            refreshShortsUseCase()
+        }
     }
     // 🚨 (4) [New] '댓글' 아이콘 클릭 이벤트
     fun onCommentIconClicked(shortsId: Int) {

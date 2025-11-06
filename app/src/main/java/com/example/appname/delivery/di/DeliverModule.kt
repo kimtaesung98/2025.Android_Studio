@@ -30,8 +30,10 @@ object DeliveryModule {
      */
     @Provides
     @Singleton
-    fun provideDeliveryRepository(): DeliveryRepository {
-        return DeliveryRepositoryImpl()
+    fun provideDeliveryRepository(
+        deliveryApi: DeliveryApi // 👈 Hilt가 제공
+    ): DeliveryRepository {
+        return DeliveryRepositoryImpl(deliveryApi)
     }
 
     /**

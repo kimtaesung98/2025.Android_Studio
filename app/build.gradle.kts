@@ -100,27 +100,29 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1") // 플레이어 UI 컨트롤러
 
-// ... 다른 라이브러리들 ...
     // (3) 🚨 Hilt 의존성 추가
     implementation("com.google.dagger:hilt-android:2.51.1")
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
-
     // (4) 🚨 ViewModel을 Hilt로 주입하기 위한 추가 라이브러리
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
     // (1) 🚨 Jetpack DataStore (Preferences) 라이브러리 추가
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
     // (2) 🚨 Retrofit2 (네트워크 클라이언트)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
-
     // (3) 🚨 Moshi (JSON <-> Kotlin 변환기)
     implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
     kapt("com.squareup.moshi:moshi-kotlin-codegen:1.15.0") // Moshi 코드 생성을 위함
-
     // (4) 🚨 (선택적이지만 권장) 네트워크 통신 로깅
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
     // (1) 🚨 Room 라이브러리 추가
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1") // 코루틴(Flow, suspend) 지원
     kapt("androidx.room:room-compiler:2.6.1") // Room 코드 생성기
+
+
+
 }
