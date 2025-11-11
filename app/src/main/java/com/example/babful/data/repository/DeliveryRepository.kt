@@ -1,34 +1,43 @@
 package com.example.babful.data.repository
 
-import android.util.Log // ⭐️ [신규]
+import android.util.Log
+import com.example.babful.data.db.DeliveryDao
 import com.example.babful.data.model.DeliveryItem
-import com.example.babful.data.network.ApiService // ⭐️ [신규]
-// ⭐️ [제거] import kotlinx.coroutines.delay
-// ⭐️ [제거] import java.util.UUID
+import com.example.babful.data.network.ApiService
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DeliveryRepository @Inject constructor(
-    // ⭐️ [수정] Hilt가 NetworkModule에서 만든 ApiService를 '주입'
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val deliveryDao: DeliveryDao
 ) {
 
     /**
-     * [수정] Go 서버 API를 호출하여 배달 데이터를 가져옴
+     * [신규] 1. 네트워크에서 배달 데이터를 가져오고, Room에 캐시
      */
-    suspend fun getDeliveryItems(): List<DeliveryItem> {
-
-        // ⭐️ [제거] '가짜 데이터' 로직 전체 삭제
-        // delay(1000)
-        // return (1..30).map { ... }
-
-        // ⭐️ [신규] '실제 API' 호출 (try-catch로 네트워크 오류 방어)
+    suspend fun getDeliveryItemsFromNetwork(): List<DeliveryItem> {
         return try {
-            apiService.getDeliveryItems()
+            val networkItems = apiService.getDeliveryItems()
+            Log.d("DeliveryRepository", "[SWR] Go API (/delivery) 호출 성공")
+
+            deliveryDao.clearAllDeliveries()
+            deliveryDao.insertAll(networkItems)
+
+            networkItems
         } catch (e: Exception) {
-            Log.e("DeliveryRepository", "Go API (/delivery) 호출 실패", e)
-            emptyList() // ⭐️ 오류 발생 시 빈 리스트 반환
+            Log.e("DeliveryRepository", "[SWR] Go API 호출 실패", e)
+            throw e // ⭐️ 실패 시 ViewModel이 알 수 있도록 예외를 다시 던짐
         }
     }
+
+    /**
+     * [신규] 2. Room DB(캐시)에서만 배달 데이터를 가져옴
+     */
+    suspend fun getDeliveryItemsFromCache(): List<DeliveryItem> {
+        Log.d("DeliveryRepository", "[SWR] Room DB 캐시 조회")
+        return deliveryDao.getAllDeliveries()
+    }
+
+    // ⭐️ [제거] 3. 기존 23단계의 getDeliveryItems (try-catch 래퍼) 함수는 삭제됨
 }

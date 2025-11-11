@@ -47,7 +47,7 @@ fun ShortsScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "오늘의 쇼츠 (SWR)", // ⭐️ [수정] 타이틀 변경
+            text = "오늘의 쇼츠 (Go API)", // ⭐️ [수정] 타이틀 변경
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(16.dp)

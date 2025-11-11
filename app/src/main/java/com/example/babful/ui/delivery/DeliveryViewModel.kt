@@ -20,9 +20,8 @@ data class DeliveryUiState(
     val isLoading: Boolean = false
 )
 
-// ⭐️ [수정] @HiltViewModel 어노테이션 추가
 @HiltViewModel
-class DeliveryViewModel @Inject constructor( // ⭐️ [수정] 생성자에 @Inject 및 Repository 추가
+class DeliveryViewModel @Inject constructor(
     private val repository: DeliveryRepository
 ) : ViewModel() {
 
@@ -31,30 +30,47 @@ class DeliveryViewModel @Inject constructor( // ⭐️ [수정] 생성자에 @In
 
     init {
         Log.d("DeliveryViewModel", "ViewModel이 생성(주입)되었습니다.")
-        loadDeliveryOrders() // ⭐️ [수정] 함수 이름 유지
+        loadDeliveryOrders()
     }
 
-    // ⭐️ [수정] 데이터 로딩 로직을 Repository 호출로 변경
+    // [수정] SWR 로직 적용 (FeedViewModel의 refreshFeed와 유사)
     private fun loadDeliveryOrders() {
-        Log.d("DeliveryViewModel", "Repository에 배달 목록 요청")
-
-        // 1. 로딩 상태 시작
-        _uiState.update { it.copy(isLoading = true) }
+        Log.d("DeliveryViewModel", "[SWR] 배달 목록 로드 요청")
+        _uiState.update { it.copy(isLoading = true) } // ⭐️ UI 스피너 시작
 
         viewModelScope.launch {
-            // 2. Repository에서 데이터 가져오기 (delay는 Repo가 담당)
-            val items = repository.getDeliveryItems()
-            delay(1000)
-            // 3. UI 상태 업데이트
+            // --- 1. 캐시 먼저 로드 ---
+            val cacheItems = repository.getDeliveryItemsFromCache()
+
+            // ⭐️ UI 1차 업데이트 (캐시)
             _uiState.update {
                 it.copy(
-                    isLoading = false,
-                    deliveryItems = items
+                    isLoading = false, // ⭐️ 캐시 로드는 빠르므로 스피너 바로 숨김
+                    deliveryItems = cacheItems
                 )
             }
-            Log.d("DeliveryViewModel", "Repository로부터 응답 받음")
+            Log.d("DeliveryViewModel", "[SWR] 1. 캐시 표시 완료 (아이템: ${cacheItems.size}개)")
+
+            // --- 2. 네트워크 갱신 (try-catch) ---
+            try {
+                // (가짜 딜레이)
+                delay(1000)
+                _uiState.update { it.copy(isLoading = true) } // ⭐️ 네트워크 갱신 스피너 시작
+
+                val networkItems = repository.getDeliveryItemsFromNetwork()
+
+                // ⭐️ UI 2차 업데이트 (최신 데이터)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        deliveryItems = networkItems
+                    )
+                }
+                Log.d("DeliveryViewModel", "[SWR] 2. 네트워크 갱신 완료 (아이템: ${networkItems.size}개)")
+            } catch (e: Exception) {
+                Log.e("DeliveryViewModel", "[SWR] 네트워크 갱신 실패", e)
+                _uiState.update { it.copy(isLoading = false) } // 스피너 숨김
+            }
         }
     }
-
-    // ⭐️ [제거] 9단계의 'loadDeliveryOrders' 내부 로직(가짜 데이터 생성)은 삭제됨
 }

@@ -18,10 +18,8 @@ data class ShortsUiState(
     val shortsItems: List<ShortsItem> = emptyList(),
     val isLoading: Boolean = false
 )
-
-// ⭐️ [수정] @HiltViewModel 어노테이션 추가
 @HiltViewModel
-class ShortsViewModel @Inject constructor( // ⭐️ [수정] 생성자에 @Inject 및 Repository 추가
+class ShortsViewModel @Inject constructor(
     private val repository: ShortsRepository
 ) : ViewModel() {
 
@@ -33,27 +31,44 @@ class ShortsViewModel @Inject constructor( // ⭐️ [수정] 생성자에 @Inje
         loadShorts()
     }
 
-    // ⭐️ [수정] 데이터 로딩 로직을 Repository 호출로 변경
+    // [수정] SWR 로직 적용 (DeliveryViewModel과 동일)
     private fun loadShorts() {
-        Log.d("ShortsViewModel", "Repository에 쇼츠 목록 요청")
-
-        // 1. 로딩 상태 시작
-        _uiState.update { it.copy(isLoading = true) }
+        Log.d("ShortsViewModel", "[SWR] 쇼츠 목록 로드 요청")
+        _uiState.update { it.copy(isLoading = true) } // ⭐️ UI 스피너 시작
 
         viewModelScope.launch {
-            // 2. Repository에서 데이터 가져오기
-            val items = repository.getShortsItems()
-            delay(1000)
-            // 3. UI 상태 업데이트
+            // --- 1. 캐시 먼저 로드 ---
+            val cacheItems = repository.getShortsItemsFromCache()
+
+            // ⭐️ UI 1차 업데이트 (캐시)
             _uiState.update {
                 it.copy(
-                    isLoading = false,
-                    shortsItems = items
+                    isLoading = false, // ⭐️ 캐시 로드는 빠르므로 스피너 바로 숨김
+                    shortsItems = cacheItems
                 )
             }
-            Log.d("ShortsViewModel", "Repository로부터 응답 받음")
+            Log.d("ShortsViewModel", "[SWR] 1. 캐시 표시 완료 (아이템: ${cacheItems.size}개)")
+
+            // --- 2. 네트워크 갱신 (try-catch) ---
+            try {
+                // (가짜 딜레이)
+                delay(1000)
+                _uiState.update { it.copy(isLoading = true) } // ⭐️ 네트워크 갱신 스피너 시작
+
+                val networkItems = repository.getShortsItemsFromNetwork()
+
+                // ⭐️ UI 2차 업데이트 (최신 데이터)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        shortsItems = networkItems
+                    )
+                }
+                Log.d("ShortsViewModel", "[SWR] 2. 네트워크 갱신 완료 (아이템: ${networkItems.size}개)")
+            } catch (e: Exception) {
+                Log.e("ShortsViewModel", "[SWR] 네트워크 갱신 실패", e)
+                _uiState.update { it.copy(isLoading = false) } // 스피너 숨김
+            }
         }
     }
-
-    // ⭐️ [제거] 10단계의 'loadShorts' 내부 로직(가짜 데이터 생성)은 삭제됨
 }

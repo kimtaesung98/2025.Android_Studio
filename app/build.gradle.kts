@@ -85,6 +85,25 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     // ⭐️ [신규] Gson (JSON <-> Kotlin 변환기)
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // ⭐️ [신규] Room (로컬 DB)
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1") // 코루틴 지원
+    kapt("androidx.room:room-compiler:2.6.1")
+    // ⭐️ [신규] JUnit 4 (기본 테스트 프레임워크)
+    testImplementation("junit:junit:4.13.2")
+
+    // ⭐️ [신규] Kotlinx Coroutines Test (runTest)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
+    // ⭐️ [신규] MockK (모킹 라이브러리)
+    testImplementation("io.mockk:mockk:1.13.11")
+
+    // ⭐️ [신규] Turbine (Flow 테스트용 - ViewModel 테스트 시 필요)
+    testImplementation("app.cash.turbine:turbine:1.1.0")
+
+    // ⭐️ [신규] Truth (Google의 Assert 라이브러리)
+    testImplementation("com.google.truth:truth:1.4.2")
+
 }
 // ⭐️ [신규] Hilt 플러그인을 kapt에 적용
 kapt {
