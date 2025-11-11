@@ -81,6 +81,10 @@ dependencies {
 
     // ⭐️ [신규] Composable에서 hiltViewModel()을 사용하기 위함
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    // ⭐️ [신규] Retrofit (HTTP 클라이언트)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    // ⭐️ [신규] Gson (JSON <-> Kotlin 변환기)
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 }
 // ⭐️ [신규] Hilt 플러그인을 kapt에 적용
 kapt {

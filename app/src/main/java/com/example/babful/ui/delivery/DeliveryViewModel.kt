@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch // ⭐️ [신규]
 import javax.inject.Inject // ⭐️ [신규]
+import kotlinx.coroutines.delay
 
 // ⭐️ [수정] isLoading 상태 추가 (UI 스피너 연동용)
 data class DeliveryUiState(
@@ -43,7 +44,7 @@ class DeliveryViewModel @Inject constructor( // ⭐️ [수정] 생성자에 @In
         viewModelScope.launch {
             // 2. Repository에서 데이터 가져오기 (delay는 Repo가 담당)
             val items = repository.getDeliveryItems()
-
+            delay(1000)
             // 3. UI 상태 업데이트
             _uiState.update {
                 it.copy(

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch // ⭐️ [신규]
 import javax.inject.Inject // ⭐️ [신규]
-
+import kotlinx.coroutines.delay
 // ⭐️ [수정] isLoading 상태 추가 (UI 스피너 연동용)
 data class ShortsUiState(
     val shortsItems: List<ShortsItem> = emptyList(),
@@ -43,7 +43,7 @@ class ShortsViewModel @Inject constructor( // ⭐️ [수정] 생성자에 @Inje
         viewModelScope.launch {
             // 2. Repository에서 데이터 가져오기
             val items = repository.getShortsItems()
-
+            delay(1000)
             // 3. UI 상태 업데이트
             _uiState.update {
                 it.copy(

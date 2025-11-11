@@ -48,7 +48,7 @@ class FeedViewModel @Inject constructor( // ⭐️ [수정] 2. 생성자에 @Inj
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
-
+            delay(1500)
             currentRadiusIndex = 0 // ⭐️ 인덱스 리셋
             val radius = radiusSteps[currentRadiusIndex]
             val freshItems = repository.getFeedItems(radius = radius, isRefresh = true)
@@ -79,7 +79,7 @@ class FeedViewModel @Inject constructor( // ⭐️ [수정] 2. 생성자에 @Inj
         _uiState.update { it.copy(isLoadingMore = true) } // '더보기' 로딩 시작
 
         viewModelScope.launch {
-
+            delay(1500)
             currentRadiusIndex++ // ⭐️ 다음 반경 인덱스로
             val nextRadius = radiusSteps[currentRadiusIndex]
             Log.d("FeedViewModel", "더 불러오기 요청 받음 -> Repository에 위임")

@@ -1,32 +1,34 @@
-package com.example.babful.data.repository // ⚠️ 기존 repository 패키지 사용
+package com.example.babful.data.repository
 
+import android.util.Log // ⭐️ [신규]
 import com.example.babful.data.model.ShortsItem
-import kotlinx.coroutines.delay
-import java.util.UUID
+import com.example.babful.data.network.ApiService // ⭐️ [신규]
+// ⭐️ [제거] import kotlinx.coroutines.delay
+// ⭐️ [제거] import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * 쇼츠 데이터 전문 저장소
- */
 @Singleton
-class ShortsRepository @Inject constructor() {
+class ShortsRepository @Inject constructor(
+    // ⭐️ [수정] Hilt가 NetworkModule에서 만든 ApiService를 '주입'
+    private val apiService: ApiService
+) {
 
     /**
-     * 쇼츠 데이터를 가져옵니다. (네트워크/DB 호출 시뮬레이션)
+     * [수정] Go 서버 API를 호출하여 쇼츠 데이터를 가져옴
      */
     suspend fun getShortsItems(): List<ShortsItem> {
 
-        // ⭐️ 1초 딜레이 (시뮬레이션)
-        delay(1000)
+        // ⭐️ [제거] '가짜 데이터' 로직 전체 삭제
+        // delay(1000)
+        // return (1..20).map { ... }
 
-        // ⭐️ [이동] 10단계 ShortsViewModel의 'loadShorts' 로직이 여기로 옴
-        return (1..20).map { i ->
-            ShortsItem(
-                id = UUID.randomUUID().toString(),
-                storeName = "Repo-쇼츠 가게 #$i", // ⭐️ Repository에서 왔음을 구분
-                storeId = "store_$i"
-            )
+        // ⭐️ [신규] '실제 API' 호출 (try-catch로 네트워크 오류 방어)
+        return try {
+            apiService.getShortsItems()
+        } catch (e: Exception) {
+            Log.e("ShortsRepository", "Go API (/shorts) 호출 실패", e)
+            emptyList() // ⭐️ 오류 발생 시 빈 리스트 반환
         }
     }
 }

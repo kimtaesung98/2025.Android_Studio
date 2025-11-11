@@ -1,35 +1,34 @@
-package com.example.babful.data.repository // ⚠️ 기존 repository 패키지 사용
+package com.example.babful.data.repository
 
+import android.util.Log // ⭐️ [신규]
 import com.example.babful.data.model.DeliveryItem
-import kotlinx.coroutines.delay
-import java.util.UUID
+import com.example.babful.data.network.ApiService // ⭐️ [신규]
+// ⭐️ [제거] import kotlinx.coroutines.delay
+// ⭐️ [제거] import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * 배달 데이터 전문 저장소 (FeedRepository와 동일한 구조)
- */
 @Singleton
-class DeliveryRepository @Inject constructor() {
+class DeliveryRepository @Inject constructor(
+    // ⭐️ [수정] Hilt가 NetworkModule에서 만든 ApiService를 '주입'
+    private val apiService: ApiService
+) {
 
     /**
-     * 배달 주문 데이터를 가져옵니다. (네트워크/DB 호출 시뮬레이션)
+     * [수정] Go 서버 API를 호출하여 배달 데이터를 가져옴
      */
     suspend fun getDeliveryItems(): List<DeliveryItem> {
 
-        // ⭐️ 1초 딜레이 (시뮬레이션)
-        delay(1000)
+        // ⭐️ [제거] '가짜 데이터' 로직 전체 삭제
+        // delay(1000)
+        // return (1..30).map { ... }
 
-        // ⭐️ [이동] 9단계 DeliveryViewModel의 'loadDeliveryOrders' 로직이 여기로 옴
-        return (1..30).map { i ->
-            val storeImgUrl = "https://picsum.photos/seed/store_$i/200/200"
-            DeliveryItem(
-                id = UUID.randomUUID().toString(),
-                storeName = "Repo-맛있는 가게 #$i", // ⭐️ Repository에서 왔음을 구분
-                storeImageUrl = storeImgUrl,
-                estimatedTimeInMinutes = (10..60).random(),
-                status = if (i % 3 == 0) "배달중" else "조리중"
-            )
+        // ⭐️ [신규] '실제 API' 호출 (try-catch로 네트워크 오류 방어)
+        return try {
+            apiService.getDeliveryItems()
+        } catch (e: Exception) {
+            Log.e("DeliveryRepository", "Go API (/delivery) 호출 실패", e)
+            emptyList() // ⭐️ 오류 발생 시 빈 리스트 반환
         }
     }
 }

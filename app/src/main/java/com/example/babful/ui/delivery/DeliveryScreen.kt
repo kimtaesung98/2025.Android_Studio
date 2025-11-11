@@ -44,7 +44,7 @@ fun DeliveryScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "배달 현황 (Repo)", // ⭐️ 타이틀 변경
+            text = "배달 현황 (Go API)", // ⭐️ [수정] 타이틀 변경
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(16.dp)
