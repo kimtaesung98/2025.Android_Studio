@@ -3,4 +3,6 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    // ⭐️ [신규] Hilt 플러그인 추가 (버전 확인)
+    id("com.google.dagger.hilt.android") version "2.51.1" apply false
 }

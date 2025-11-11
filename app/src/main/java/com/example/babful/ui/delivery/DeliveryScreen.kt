@@ -2,7 +2,7 @@ package com.example.babful.ui.delivery
 
 import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Box // ⭐️ [신규]
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,64 +14,65 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator // ⭐️ [신규]
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue // ⭐️ [신규] getValue 임포트
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment // ⭐️ [신규]
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle // ⭐️ [신규]
-import androidx.lifecycle.viewmodel.compose.viewModel // ⭐️ [신규]
-import com.example.babful.data.model.DeliveryItem
+import androidx.hilt.navigation.compose.hiltViewModel // ⭐️ [신규]
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+// ⭐️ [제거] import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
-// ⭐️ [제거] import java.util.UUID (ViewModel로 이동)
+import com.example.babful.data.model.DeliveryItem
 
 @Composable
 fun DeliveryScreen(
-    // ⭐️ [신규] viewModel() 헬퍼 함수로 ViewModel 인스턴스 주입
-    viewModel: DeliveryViewModel = viewModel()
+    // ⭐️ [수정] viewModel() -> hiltViewModel()
+    viewModel: DeliveryViewModel = hiltViewModel()
 ) {
-    // ⭐️ [신규] ViewModel의 StateFlow를 구독
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) {
-        Log.d("DeliveryScreen", "배달 화면이 띄워졌습니다 (ViewModel 적용)")
-    }
-
-    // ⭐️ [제거] 7단계에 있던 'val deliveryItems = (1..30).map { ... }' 로직 삭제
-    // (이 로직은 DeliveryViewModel로 이동했음)
+    val isLoading = uiState.isLoading // ⭐️ 로딩 상태
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "배달 현황 (VM)", // 타이틀 변경
+            text = "배달 현황 (Repo)", // ⭐️ 타이틀 변경
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(16.dp)
         )
 
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .background(Color.Gray.copy(alpha = 0.1f))
-        ) {
-            // ⭐️ [수정] 7단계의 deliveryItems 대신 viewModel의 uiState.deliveryItems 사용
-            items(uiState.deliveryItems, key = { it.id }) { item ->
-                DeliveryItemView(item = item)
+        // ⭐️ [신규] 로딩 상태에 따라 스피너 또는 목록 표시
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .background(Color.Gray.copy(alpha = 0.1f))
+            ) {
+                items(uiState.deliveryItems, key = { it.id }) { item ->
+                    DeliveryItemView(item = item)
+                }
             }
         }
     }
 }
 
-
-// ⭐️ (DeliveryItemView 코드는 7단계와 '완전히 동일' - 수정 불필요)
 @Composable
 fun DeliveryItemView(item: DeliveryItem) {
     Row(

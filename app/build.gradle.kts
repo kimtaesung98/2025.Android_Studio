@@ -2,6 +2,11 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // ⭐️ [신규] 'kotlin-kapt' 추가 (Hilt가 코드를 생성하기 위해 필요)
+    id("kotlin-kapt")
+
+    // ⭐️ [신규] Hilt 플러그인 적용
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -70,4 +75,14 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.compose.foundation:foundation:1.6.7")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    // ⭐️ [신규] Hilt (DI)
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
+
+    // ⭐️ [신규] Composable에서 hiltViewModel()을 사용하기 위함
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+}
+// ⭐️ [신규] Hilt 플러그인을 kapt에 적용
+kapt {
+    correctErrorTypes = true
 }

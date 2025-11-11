@@ -36,11 +36,15 @@ import com.example.babful.ui.store.StoreMenuScreen // ⭐️ [신규]
 import androidx.navigation.NavType // ⭐️ [신규]
 import androidx.navigation.navArgument // ⭐️ [신규]
 import com.example.babful.ui.NavigationRoutes // ⭐️ [신규]
+import dagger.hilt.android.AndroidEntryPoint
+import com.example.babful.ui.feed.FeedScreen
+import com.example.babful.ui.theme.BabfulTheme
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            BabfulTheme { // ⭐️ [수정] Bapful(P) -> Babful(B)
+            BabfulTheme {
                 MainScreen()
             }
         }

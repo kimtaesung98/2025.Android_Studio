@@ -2,50 +2,97 @@ package com.example.babful.ui.feed
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.babful.data.model.FeedItem
+import com.example.babful.data.repository.FeedRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.util.UUID
-
-// 1. ViewModel이 UI에 전달할 화면 상태 (State)
+import javax.inject.Inject
 data class FeedUiState(
-    val feedItems: List<FeedItem> = emptyList(), // 피드 아이템 목록
-    val isLoading: Boolean = false
+    val feedItems: List<FeedItem> = emptyList(),
+    val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false
 )
 
-// 2. ViewModel 클래스 정의 (androidx.lifecycle.ViewModel 상속)
-class FeedViewModel : ViewModel() {
+@HiltViewModel
+class FeedViewModel @Inject constructor( // ⭐️ [수정] 2. 생성자에 @Inject 및 Repository 추가
+    private val repository: FeedRepository // Hilt가 이 파라미터를 '주입'해 줌
+) : ViewModel() {
 
-    // 3. UI 상태를 관리하는 StateFlow
-    // (private MutableStateFlow: 이 클래스 내부에서만 수정 가능)
     private val _uiState = MutableStateFlow(FeedUiState())
-    // (public StateFlow: 외부(UI)에서는 읽기만 가능)
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
 
-    // 4. ViewModel이 생성(초기화)될 때 데이터 로드
+    private val radiusSteps = listOf(5, 10, 15, 20, 30)
+    private var currentRadiusIndex = 0
+
+    // ⭐️ [제거] 3. Repository '직접 생성' 코드 삭제
+    // private val repository = FeedRepository()
+
     init {
-        Log.d("FeedViewModel", "ViewModel이 생성되었습니다.")
-        loadFeed()
+        Log.d("FeedViewModel", "ViewModel이 생성(주입)되었습니다.")
+        refreshFeed()
     }
 
-    // 5. 데이터 로딩 (5단계의 가짜 데이터 생성 로직이 여기로 이동)
-    private fun loadFeed() {
-        val fakeFeedItems = (1..50).map { i ->
-            // ⭐️ 이미지 URL을 생성 (seed를 i로 주어 매번 같은 이미지가 나오도록)
-            val imageUrl = "https://picsum.photos/seed/$i/300/300"
+    // [수정] 3. '새로고침' 함수 (5km로 리셋)
+    fun refreshFeed() {
+        Log.d("FeedViewModel", "새로고침 요청 받음 (5km 로드)")
 
-            FeedItem(
-                id = UUID.randomUUID().toString(),
-                userName = "vm_user_$i",
-                // ⭐️ [수정] userProfileImageUrl, postImageUrl에 URL 할당
-                userProfileImageUrl = "https://picsum.photos/seed/user_$i/100/100",
-                postImageUrl = imageUrl,
-                content = "이것은 $i 번째 피드 아이템입니다. (ViewModel로부터)",
-                likesCount = (0..100).random()
-            )
+        if (_uiState.value.isLoading || _uiState.value.isLoadingMore) return
+
+        _uiState.update { it.copy(isLoading = true) }
+
+        viewModelScope.launch {
+
+            currentRadiusIndex = 0 // ⭐️ 인덱스 리셋
+            val radius = radiusSteps[currentRadiusIndex]
+            val freshItems = repository.getFeedItems(radius = radius, isRefresh = true)
+
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    feedItems = freshItems // ⭐️ 목록을 '교체'
+                )
+            }
+            Log.d("FeedViewModel", "새로고침 완료 (현재 반경: ${radius}km)")
         }
-        _uiState.update { it.copy(feedItems = fakeFeedItems) }
+    }
+
+    // [수정] 4. '더 불러오기' 함수 (다음 반경으로 확장)
+    fun loadMoreFeed() {
+        if (_uiState.value.isLoading || _uiState.value.isLoadingMore) {
+            Log.d("FeedViewModel", "이미 로딩 중... 요청 무시")
+            return
+        }
+
+        // ⭐️ [신규] 5. 최대 반경 도달 여부 확인
+        if (currentRadiusIndex >= radiusSteps.size - 1) {
+            Log.d("FeedViewModel", "최대 반경(${radiusSteps.last()}km) 도달. 로드 중지.")
+            return // 더 이상 로드할 반경이 없음
+        }
+
+        _uiState.update { it.copy(isLoadingMore = true) } // '더보기' 로딩 시작
+
+        viewModelScope.launch {
+
+            currentRadiusIndex++ // ⭐️ 다음 반경 인덱스로
+            val nextRadius = radiusSteps[currentRadiusIndex]
+            Log.d("FeedViewModel", "더 불러오기 요청 받음 -> Repository에 위임")
+
+            val newItems = repository.getFeedItems(radius = nextRadius, isRefresh = false)
+
+            _uiState.update { currentState ->
+                currentState.copy(
+                    isLoadingMore = false,
+                    feedItems = currentState.feedItems + newItems // ⭐️ 목록에 '추가'
+                )
+            }
+            Log.d("FeedViewModel", "더 불러오기 완료 (현재 반경: ${nextRadius}km)")
+        }
     }
 }

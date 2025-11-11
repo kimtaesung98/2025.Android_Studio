@@ -2,47 +2,58 @@ package com.example.babful.ui.shorts
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope // ⭐️ [신규]
 import com.example.babful.data.model.ShortsItem
+import com.example.babful.data.repository.ShortsRepository // ⭐️ [신규]
+import dagger.hilt.android.lifecycle.HiltViewModel // ⭐️ [신규]
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.util.UUID
+import kotlinx.coroutines.launch // ⭐️ [신규]
+import javax.inject.Inject // ⭐️ [신규]
 
-// 1. ViewModel이 UI에 전달할 화면 상태 (State)
+// ⭐️ [수정] isLoading 상태 추가 (UI 스피너 연동용)
 data class ShortsUiState(
     val shortsItems: List<ShortsItem> = emptyList(),
     val isLoading: Boolean = false
 )
 
-// 2. ViewModel 클래스 정의
-class ShortsViewModel : ViewModel() {
+// ⭐️ [수정] @HiltViewModel 어노테이션 추가
+@HiltViewModel
+class ShortsViewModel @Inject constructor( // ⭐️ [수정] 생성자에 @Inject 및 Repository 추가
+    private val repository: ShortsRepository
+) : ViewModel() {
 
-    // 3. UI 상태를 관리하는 StateFlow
     private val _uiState = MutableStateFlow(ShortsUiState())
     val uiState: StateFlow<ShortsUiState> = _uiState.asStateFlow()
 
-    // 4. ViewModel이 생성(초기화)될 때 데이터 로드
     init {
-        Log.d("ShortsViewModel", "ViewModel이 생성되었습니다.")
+        Log.d("ShortsViewModel", "ViewModel이 생성(주입)되었습니다.")
         loadShorts()
     }
 
-    // 5. 데이터 로딩 (8단계의 가짜 데이터 생성 로직이 여기로 이동)
+    // ⭐️ [수정] 데이터 로딩 로직을 Repository 호출로 변경
     private fun loadShorts() {
-        val fakeShortsItems = (1..20).map { i ->
-            ShortsItem(
-                id = UUID.randomUUID().toString(),
-                storeName = "VM-쇼츠 가게 #$i", // ViewModel에서 왔음을 구분
-                storeId = "store_$i"
-            )
-        }
+        Log.d("ShortsViewModel", "Repository에 쇼츠 목록 요청")
 
-        // 6. StateFlow에 최신 데이터를 업데이트
-        _uiState.update { currentState ->
-            currentState.copy(
-                shortsItems = fakeShortsItems
-            )
+        // 1. 로딩 상태 시작
+        _uiState.update { it.copy(isLoading = true) }
+
+        viewModelScope.launch {
+            // 2. Repository에서 데이터 가져오기
+            val items = repository.getShortsItems()
+
+            // 3. UI 상태 업데이트
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    shortsItems = items
+                )
+            }
+            Log.d("ShortsViewModel", "Repository로부터 응답 받음")
         }
     }
+
+    // ⭐️ [제거] 10단계의 'loadShorts' 내부 로직(가짜 데이터 생성)은 삭제됨
 }
