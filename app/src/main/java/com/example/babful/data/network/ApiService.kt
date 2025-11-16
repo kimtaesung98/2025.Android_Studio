@@ -5,13 +5,15 @@ import com.example.babful.data.model.FeedItem
 import com.example.babful.data.model.ShortsItem
 import com.google.gson.annotations.SerializedName
 import com.example.babful.data.model.StoreInfo // ⭐️ [신규]
+import com.example.babful.data.model.User // ⭐️ [신규]
+import com.example.babful.data.model.Transaction // ⭐️ [신규]
+import com.example.babful.data.model.PaymentRequest // ⭐️ [신규]
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.Path // ⭐️ [신규]
 import java.util.Date // ⭐️ [신규]
-// (AuthRequest, AuthResponse 31단계와 동일)
 data class AuthRequest(
     @SerializedName("email") val email: String,
     @SerializedName("password") val password: String
@@ -75,12 +77,20 @@ interface ApiService {
     // ⭐️ [신규] 8. '구독 취소' (POST)
     @POST("unsubscribe")
     suspend fun unsubscribeStore(@Body request: SubscribeRequest)
-    
-    // ⭐️ [신규] 9. '포인트 내역' (GET)
+
+    // ⭐️ [수정] 9. '포인트 내역' (model.Transaction 임포트)
     @GET("points/history")
     suspend fun getPointHistory(): List<Transaction>
 
-    // ⭐️ [신규] 10. '포인트 사용' (POST)
+    // ⭐️ [수정] 10. '포인트 사용' (model.PointUseRequest 임포트)
     @POST("points/use")
     suspend fun usePoints(@Body request: PointUseRequest)
+
+    // ⭐️ [수정] 11. '내 프로필 정보' (model.User 임포트)
+    @GET("profile/me")
+    suspend fun getProfileInfo(): User
+
+    // ⭐️ [수정] 10. '포인트 사용' -> '결제/적립' (POST)
+    @POST("payment/success")
+    suspend fun processPayment(@Body request: PaymentRequest)
 }

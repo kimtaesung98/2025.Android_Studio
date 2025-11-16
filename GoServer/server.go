@@ -87,19 +87,25 @@ type StoreInfo struct {
 	IsSubscribed bool    `json:"is_subscribed"` // ⭐️ '구독' 여부 (JOIN 결과)
 }
 
-// ⭐️ [신규] 포인트 사용/적립 내역
 type Transaction struct {
 	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
-	Amount    int       `json:"amount"` // (예: +100 (적립), -500 (사용))
-	Type      string    `json:"type"`   // (예: "적립", "사용")
+	Amount    int       `json:"amount"`
+	Type      string    `json:"type"`
 	Timestamp time.Time `json:"timestamp"`
+	OrderID   *string   `json:"order_id"` // ⭐️ [신규] (악용 방지용)
 }
 
 // ⭐️ [신규] 포인트 사용 요청
 type PointUseRequest struct {
 	Amount int    `json:"amount"`
 	Reason string `json:"reason"`
+}
+
+// ⭐️ [수정] 38단계의 PointUseRequest -> PaymentRequest
+type PaymentRequest struct {
+	AmountPaid int    `json:"amount_paid"` // (예: 10000)
+	OrderID    string `json:"order_id"`    // (예: "ORD-12345")
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,15 +151,17 @@ func setupDatabase(db *sql.DB) {
         hashed_password TEXT,
         points INTEGER DEFAULT 0 
     )`)
-	// ⭐️ [신규] 7. '포인트 내역' 테이블
+
+	// ⭐️ [수정] 7. '포인트 내역' 테이블 (악용 방지)
 	db.Exec(`CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         amount INTEGER,
         type TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        order_id TEXT UNIQUE, 
         FOREIGN KEY (user_id) REFERENCES users (id)
-    )`)
+    )`) // ⭐️ order_id UNIQUE 제약조건 추가
 
 	// ⭐️ [신규] 5. '좋아요' 테이블
 	// '누가'(user_id) '무엇을'(feed_id) 좋아했는지 기록
@@ -340,6 +348,12 @@ func deliveryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(deliveryItems)
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func shortsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Println("안드로이드로부터 /shorts 요청 수신 (DB 조회)")
@@ -541,6 +555,11 @@ func unlikeFeedHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.WriteHeader(http.StatusOK)
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [신규] 7. '가게 정보' 핸들러 (GET)
 func storeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	// (예: /store/store_1)
@@ -582,6 +601,11 @@ func storeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	json.NewEncoder(w).Encode(store)
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [신규] 8. '구독' 핸들러 (POST)
 func subscribeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Println("안드로이드로부터 /subscribe (구독) 요청 수신")
@@ -613,6 +637,11 @@ func subscribeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.WriteHeader(http.StatusOK)
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [신규] 9. '구독 취소' 핸들러 (POST)
 func unsubscribeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Println("안드로이드로부터 /unsubscribe (구독 취소) 요청 수신")
@@ -644,6 +673,11 @@ func unsubscribeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.WriteHeader(http.StatusOK)
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [신규] 12. '포인트 내역' 핸들러 (GET)
 func pointHistoryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Println("안드로이드로부터 /points/history 요청 수신")
@@ -667,7 +701,9 @@ func pointHistoryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 	defer rows.Close()
 
-	var transactions []Transaction
+	// ⭐️ [수정] 'nil' 슬라이스 대신 '빈(empty)' 슬라이스로 초기화
+	transactions := make([]Transaction, 0) // var transactions []Transaction -> make(...)
+
 	for rows.Next() {
 		var t Transaction
 		if err := rows.Scan(&t.ID, &t.UserID, &t.Amount, &t.Type, &t.Timestamp); err != nil {
@@ -677,62 +713,65 @@ func pointHistoryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		transactions = append(transactions, t)
 	}
 
+	// ⭐️ (이제 'transactions'가 비어있으면 'null'이 아닌 '[]'를 반환함)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(transactions)
 }
 
-// ⭐️ [신규] 13. '포인트 사용' 핸들러 (POST)
-// (참고: '적립'은 /payment (결제) 핸들러 등 다른 로직에서 호출되어야 함)
-func usePointsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	log.Println("안드로이드로부터 /points/use 요청 수신")
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ⭐️ [수정] 13. 38단계의 'usePointsHandler' -> 'paymentSuccessHandler' (적립)
+func paymentSuccessHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	log.Println("안드로이드로부터 /payment/success (결제/적립) 요청 수신")
 	claims, err := verifyJWT(r) // --- 1. (인가) ---
 	if err != nil {
 		http.Error(w, "Authentication required", http.StatusUnauthorized)
 		return
 	}
-	var req PointUseRequest // --- 2. (요청 파싱) ---
+	var req PaymentRequest // --- 2. (요청 파싱) ---
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	if req.Amount <= 0 {
+	if req.AmountPaid <= 0 {
 		http.Error(w, "Amount must be positive", http.StatusBadRequest)
 		return
 	}
 
 	// --- 3. (DB 작업) '누가' ---
-	var user User
-	err = db.QueryRow("SELECT id, points FROM users WHERE email = ?", claims.Email).Scan(&user.ID, &user.Points)
+	var userID int
+	err = db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	// ⭐️ --- 4. (비즈니스 로직) 포인트 잔액 확인 ---
-	if user.Points < req.Amount {
-		http.Error(w, "Insufficient points", http.StatusConflict) // 409 Conflict
-		return
-	}
+	// ⭐️ --- 4. (비즈니스 로직) 포인트 '적립' 계산 (1%) ---
+	pointsEarned := int(float64(req.AmountPaid) * 0.01) // (예: 10000원 -> 100P)
 
-	// ⭐️ --- 5. (DB 트랜잭션) 2개 테이블 동시 업데이트 ---
-	// (Tx: 둘 중 하나라도 실패하면 '롤백'하기 위함)
+	// ⭐️ --- 5. (DB 트랜잭션) '악용 방지' 적용 ---
 	tx, err := db.Begin()
 	if err != nil {
 		http.Error(w, "Transaction error", http.StatusInternalServerError)
 		return
 	}
 
-	// 5-1. users 테이블: 잔액 차감
-	newBalance := user.Points - req.Amount
-	_, err = tx.Exec("UPDATE users SET points = ? WHERE id = ?", newBalance, user.ID)
+	// 5-1. ⭐️ transactions 테이블: '적립' 내역 기록 (악용 방지)
+	// (order_id에 UNIQUE 제약조건이 있으므로, 중복 시도 시 이 쿼리가 '실패'함)
+	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type, order_id) VALUES (?, ?, ?, ?)",
+		userID, pointsEarned, "적립: 주문", req.OrderID)
 	if err != nil {
-		tx.Rollback()
-		http.Error(w, "Tx error 1", http.StatusInternalServerError)
+		tx.Rollback() // ⭐️ 롤백
+		log.Printf("포인트 적립 실패 (악용/중복 의심): %v", err)
+		http.Error(w, "Duplicate order or DB error", http.StatusConflict) // 409 Conflict
 		return
 	}
 
-	// 5-2. transactions 테이블: '사용' 내역 기록
-	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type) VALUES (?, ?, ?)", user.ID, -req.Amount, "사용: "+req.Reason)
+	// 5-2. users 테이블: 잔액 증가
+	_, err = tx.Exec("UPDATE users SET points = points + ? WHERE id = ?", pointsEarned, userID)
 	if err != nil {
 		tx.Rollback()
 		http.Error(w, "Tx error 2", http.StatusInternalServerError)
@@ -745,8 +784,35 @@ func usePointsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	log.Printf("포인트 사용 성공: UserID %d, %dP 사용", user.ID, req.Amount)
+	log.Printf("포인트 적립 성공: UserID %d, %dP 적립 (Order: %s)", userID, pointsEarned, req.OrderID)
 	w.WriteHeader(http.StatusOK)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ⭐️ [신규] 13. '내 프로필 정보' 핸들러 (GET)
+func profileHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	log.Println("안드로이드로부터 /profile/me 요청 수신")
+	claims, err := verifyJWT(r) // --- 1. (인가) ---
+	if err != nil {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+
+	// --- 2. (DB 작업) '내 정보' 조회 (포인트 포함) ---
+	var user User
+	err = db.QueryRow("SELECT id, email, points FROM users WHERE email = ?", claims.Email).Scan(&user.ID, &user.Email, &user.Points)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	log.Printf("프로필 조회 성공: UserID %d, Points %d", user.ID, user.Points)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -845,14 +911,26 @@ func main() {
 		}
 		pointHistoryHandler(w, r, db)
 	})
-	http.HandleFunc("/points/use", func(w http.ResponseWriter, r *http.Request) {
+
+	// ⭐️ [수정]  38단계의 /points/use -> /payment/success
+	http.HandleFunc("/payment/success", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST", http.StatusMethodNotAllowed)
 			return
 		}
-		usePointsHandler(w, r, db)
+		paymentSuccessHandler(w, r, db)
 	})
 
+	// ⭐️ [신규] 13. Profile 핸들러
+	http.HandleFunc("/profile/me", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Only GET", http.StatusMethodNotAllowed)
+			return
+		}
+		profileHandler(w, r, db)
+	})
+
+	// --- 서버 시작 ---
 	fmt.Println("Go 백엔드 서버(Auth v6 - Like Toggle)가 http://localhost:8080 에서 실행 중입니다...")
 	log.Fatal(http.ListenAndServe(":8080", nil)) // ⭐️ 8080 포트
 }

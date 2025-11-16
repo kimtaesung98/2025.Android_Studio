@@ -1,5 +1,6 @@
 package com.example.babful.data.repository
 
+import com.example.babful.data.model.PaymentRequest
 import com.example.babful.data.model.StoreInfo
 import com.example.babful.data.network.ApiService
 import com.example.babful.data.network.SubscribeRequest
@@ -22,5 +23,10 @@ class StoreRepository @Inject constructor(
 
     suspend fun unsubscribeStore(storeId: String) {
         apiService.unsubscribeStore(SubscribeRequest(storeId = storeId))
+    }
+
+    // ⭐️ [신규] '결제/적립' API 호출
+    suspend fun processPayment(amountPaid: Int, orderId: String) {
+        apiService.processPayment(PaymentRequest(amountPaid = amountPaid, orderId = orderId))
     }
 }
