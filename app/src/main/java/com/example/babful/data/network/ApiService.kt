@@ -4,11 +4,13 @@ import com.example.babful.data.model.DeliveryItem
 import com.example.babful.data.model.FeedItem
 import com.example.babful.data.model.ShortsItem
 import com.google.gson.annotations.SerializedName
+import com.example.babful.data.model.StoreInfo // ⭐️ [신규]
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
-
+import retrofit2.http.Path // ⭐️ [신규]
+import java.util.Date // ⭐️ [신규]
 // (AuthRequest, AuthResponse 31단계와 동일)
 data class AuthRequest(
     @SerializedName("email") val email: String,
@@ -20,6 +22,24 @@ data class AuthResponse(
 // ⭐️ '좋아요' 요청 Body
 data class LikeRequest(
     @SerializedName("feed_id") val feedId: String
+)
+// ⭐️ [신규] '구독' 요청 Body
+data class SubscribeRequest(
+    @SerializedName("store_id") val storeId: String
+)
+
+// ⭐️ [신규] 포인트 내역
+data class Transaction(
+    @SerializedName("id") val id: Int,
+    @SerializedName("user_id") val userId: Int,
+    @SerializedName("amount") val amount: Int,
+    @SerializedName("type") val type: String,
+    @SerializedName("timestamp") val timestamp: Date
+)
+// ⭐️ [신규] 포인트 사용 요청
+data class PointUseRequest(
+    @SerializedName("amount") val amount: Int,
+    @SerializedName("reason") val reason: String
 )
 
 interface ApiService {
@@ -44,4 +64,23 @@ interface ApiService {
     // ⭐️ [신규] 5. '좋아요 취소' (POST)
     @POST("unlike")
     suspend fun unlikeFeedItem(@Body request: LikeRequest)
+    // ⭐️ [신규] 6. '가게 정보' (GET)
+    @GET("store/{storeId}")
+    suspend fun getStoreInfo(@Path("storeId") storeId: String): StoreInfo
+
+    // ⭐️ [신규] 7. '구독' (POST)
+    @POST("subscribe")
+    suspend fun subscribeStore(@Body request: SubscribeRequest)
+
+    // ⭐️ [신규] 8. '구독 취소' (POST)
+    @POST("unsubscribe")
+    suspend fun unsubscribeStore(@Body request: SubscribeRequest)
+    
+    // ⭐️ [신규] 9. '포인트 내역' (GET)
+    @GET("points/history")
+    suspend fun getPointHistory(): List<Transaction>
+
+    // ⭐️ [신규] 10. '포인트 사용' (POST)
+    @POST("points/use")
+    suspend fun usePoints(@Body request: PointUseRequest)
 }

@@ -49,7 +49,8 @@ type ShortsItem struct {
 type User struct {
 	ID             int    `json:"id"`
 	Email          string `json:"email"`
-	HashedPassword string `json:"-"` // JSON 응답에는 포함하지 않음
+	HashedPassword string `json:"-"`      // JSON 응답에는 포함하지 않음
+	Points         int    `json:"points"` // ⭐️ [신규] 사용자 포인트 잔액
 }
 
 // ⭐️ [신규] API 요청/응답용 구조체
@@ -71,6 +72,34 @@ var jwtKey = []byte("my_secret_key_12345")
 type Claims struct {
 	Email string `json:"email"`
 	jwt.RegisteredClaims
+}
+
+// ⭐️ [신규] '가게 구독' 요청 본문
+type SubscribeRequest struct {
+	StoreID string `json:"store_id"`
+}
+
+// ⭐️ [신규] '가게 정보' 응답 본문
+type StoreInfo struct {
+	ID           string  `json:"id"`
+	StoreName    string  `json:"store_name"`
+	BannerImage  *string `json:"banner_image"`
+	IsSubscribed bool    `json:"is_subscribed"` // ⭐️ '구독' 여부 (JOIN 결과)
+}
+
+// ⭐️ [신규] 포인트 사용/적립 내역
+type Transaction struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	Amount    int       `json:"amount"` // (예: +100 (적립), -500 (사용))
+	Type      string    `json:"type"`   // (예: "적립", "사용")
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// ⭐️ [신규] 포인트 사용 요청
+type PointUseRequest struct {
+	Amount int    `json:"amount"`
+	Reason string `json:"reason"`
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,11 +138,21 @@ func setupDatabase(db *sql.DB) {
         video_url TEXT
     )`)
 
-	// ⭐️ [신규] Users 테이블 (비밀번호 해시 저장)
+	// ⭐️ [수정] Users 테이블 (points 컬럼 추가)
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE,
-        hashed_password TEXT
+        hashed_password TEXT,
+        points INTEGER DEFAULT 0 
+    )`)
+	// ⭐️ [신규] 7. '포인트 내역' 테이블
+	db.Exec(`CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        amount INTEGER,
+        type TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
     )`)
 
 	// ⭐️ [신규] 5. '좋아요' 테이블
@@ -127,6 +166,15 @@ func setupDatabase(db *sql.DB) {
         FOREIGN KEY (feed_id) REFERENCES feeds (id)
     )`)
 
+	// ⭐️ [신규] 6. '구독' 테이블
+	// '누가'(user_id) '어느 가게를'(store_id) 구독했는지
+	db.Exec(`CREATE TABLE IF NOT EXISTS subscriptions (
+        user_id INTEGER,
+        store_id TEXT, 
+        PRIMARY KEY (user_id, store_id),
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    )`)
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// --- 시드 데이터 삽입 (최초 1회만 실행되도록 INSERT OR IGNORE) ---
 	log.Println("데이터베이스 시드 데이터 삽입 시도...")
 	// (반경별 2개씩만 샘플로 삽입)
@@ -493,6 +541,214 @@ func unlikeFeedHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// ⭐️ [신규] 7. '가게 정보' 핸들러 (GET)
+func storeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	// (예: /store/store_1)
+	storeID := strings.TrimPrefix(r.URL.Path, "/store/")
+	log.Printf("안드로이드로부터 /store/%s (가게 정보) 요청 수신", storeID)
+
+	var userID int // '0'이면 비로그인
+
+	// 1. JWT 검증 및 'userID' 추출
+	claims, err := verifyJWT(r)
+	if err == nil {
+		db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+	}
+
+	// 2. ⭐️ SQL 쿼리 (LEFT JOIN 추가)
+	// (shorts 테이블에서 가게 정보를 가져오고, subscriptions 테이블을 JOIN하여 '구독 여부' 확인)
+	query := `
+        SELECT 
+            s.store_id, s.store_name, 
+            (sub.user_id IS NOT NULL) AS isSubscribed
+        FROM 
+            shorts s
+        LEFT JOIN 
+            subscriptions sub ON s.store_id = sub.store_id AND sub.user_id = ?
+        WHERE 
+            s.store_id = ?
+        LIMIT 1
+    `
+	var store StoreInfo
+	// (BannerImage는 이 예제에서 NULL이므로 스캔 생략)
+	err = db.QueryRow(query, userID, storeID).Scan(&store.ID, &store.StoreName, &store.IsSubscribed)
+	if err != nil {
+		log.Printf("DB 쿼리 오류 (Store JOIN): %v", err)
+		http.Error(w, "Store not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(store)
+}
+
+// ⭐️ [신규] 8. '구독' 핸들러 (POST)
+func subscribeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	log.Println("안드로이드로부터 /subscribe (구독) 요청 수신")
+	claims, err := verifyJWT(r) // --- 1. (인가) ---
+	if err != nil {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	var req SubscribeRequest // --- 2. (요청 파싱) ---
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	var userID int // --- 3. (DB 작업) '누가' ---
+	err = db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// --- 4. (DB 작업) '구독' 삽입 (INSERT OR IGNORE) ---
+	_, err = db.Exec("INSERT OR IGNORE INTO subscriptions (user_id, store_id) VALUES (?, ?)", userID, req.StoreID)
+	if err != nil {
+		http.Error(w, "Database error (subscriptions)", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("구독 성공: UserID %d -> StoreID %s", userID, req.StoreID)
+	w.WriteHeader(http.StatusOK)
+}
+
+// ⭐️ [신규] 9. '구독 취소' 핸들러 (POST)
+func unsubscribeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	log.Println("안드로이드로부터 /unsubscribe (구독 취소) 요청 수신")
+	claims, err := verifyJWT(r) // --- 1. (인가) ---
+	if err != nil {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	var req SubscribeRequest // --- 2. (요청 파싱) ---
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	var userID int // --- 3. (DB 작업) '누가' ---
+	err = db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// --- 4. (DB 작업) '구독' 삭제 (DELETE) ---
+	_, err = db.Exec("DELETE FROM subscriptions WHERE user_id = ? AND store_id = ?", userID, req.StoreID)
+	if err != nil {
+		http.Error(w, "Database error (subscriptions delete)", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("구독 취소 성공: UserID %d -> StoreID %s", userID, req.StoreID)
+	w.WriteHeader(http.StatusOK)
+}
+
+// ⭐️ [신규] 12. '포인트 내역' 핸들러 (GET)
+func pointHistoryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	log.Println("안드로이드로부터 /points/history 요청 수신")
+	claims, err := verifyJWT(r) // --- 1. (인가) ---
+	if err != nil {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	var userID int // --- 2. (DB 작업) '누가' ---
+	err = db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// --- 3. (DB 작업) '내역' 조회 ---
+	rows, err := db.Query("SELECT id, user_id, amount, type, timestamp FROM transactions WHERE user_id = ? ORDER BY timestamp DESC", userID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var transactions []Transaction
+	for rows.Next() {
+		var t Transaction
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Amount, &t.Type, &t.Timestamp); err != nil {
+			http.Error(w, "Scan error", http.StatusInternalServerError)
+			return
+		}
+		transactions = append(transactions, t)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(transactions)
+}
+
+// ⭐️ [신규] 13. '포인트 사용' 핸들러 (POST)
+// (참고: '적립'은 /payment (결제) 핸들러 등 다른 로직에서 호출되어야 함)
+func usePointsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	log.Println("안드로이드로부터 /points/use 요청 수신")
+	claims, err := verifyJWT(r) // --- 1. (인가) ---
+	if err != nil {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	var req PointUseRequest // --- 2. (요청 파싱) ---
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Amount <= 0 {
+		http.Error(w, "Amount must be positive", http.StatusBadRequest)
+		return
+	}
+
+	// --- 3. (DB 작업) '누가' ---
+	var user User
+	err = db.QueryRow("SELECT id, points FROM users WHERE email = ?", claims.Email).Scan(&user.ID, &user.Points)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// ⭐️ --- 4. (비즈니스 로직) 포인트 잔액 확인 ---
+	if user.Points < req.Amount {
+		http.Error(w, "Insufficient points", http.StatusConflict) // 409 Conflict
+		return
+	}
+
+	// ⭐️ --- 5. (DB 트랜잭션) 2개 테이블 동시 업데이트 ---
+	// (Tx: 둘 중 하나라도 실패하면 '롤백'하기 위함)
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Transaction error", http.StatusInternalServerError)
+		return
+	}
+
+	// 5-1. users 테이블: 잔액 차감
+	newBalance := user.Points - req.Amount
+	_, err = tx.Exec("UPDATE users SET points = ? WHERE id = ?", newBalance, user.ID)
+	if err != nil {
+		tx.Rollback()
+		http.Error(w, "Tx error 1", http.StatusInternalServerError)
+		return
+	}
+
+	// 5-2. transactions 테이블: '사용' 내역 기록
+	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type) VALUES (?, ?, ?)", user.ID, -req.Amount, "사용: "+req.Reason)
+	if err != nil {
+		tx.Rollback()
+		http.Error(w, "Tx error 2", http.StatusInternalServerError)
+		return
+	}
+
+	// 5-3. 트랜잭션 '커밋' (최종 승인)
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Commit error", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("포인트 사용 성공: UserID %d, %dP 사용", user.ID, req.Amount)
+	w.WriteHeader(http.StatusOK)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -554,6 +810,47 @@ func main() {
 			return
 		}
 		unlikeFeedHandler(w, r, db)
+	})
+
+	// ⭐️ [신규] 10. Store 핸들러 (GET) - (주의: 'store/'는 /feed 등 보다 '나중에' 등록)
+	http.HandleFunc("/store/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Only GET", http.StatusMethodNotAllowed)
+			return
+		}
+		storeHandler(w, r, db)
+	})
+
+	// ⭐️ [신규] 11. Subscribe/Unsubscribe 핸들러 (POST)
+	http.HandleFunc("/subscribe", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Only POST", http.StatusMethodNotAllowed)
+			return
+		}
+		subscribeHandler(w, r, db)
+	})
+	http.HandleFunc("/unsubscribe", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Only POST", http.StatusMethodNotAllowed)
+			return
+		}
+		unsubscribeHandler(w, r, db)
+	})
+
+	// ⭐️ [신규] 12. Points 핸들러
+	http.HandleFunc("/points/history", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Only GET", http.StatusMethodNotAllowed)
+			return
+		}
+		pointHistoryHandler(w, r, db)
+	})
+	http.HandleFunc("/points/use", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Only POST", http.StatusMethodNotAllowed)
+			return
+		}
+		usePointsHandler(w, r, db)
 	})
 
 	fmt.Println("Go 백엔드 서버(Auth v6 - Like Toggle)가 http://localhost:8080 에서 실행 중입니다...")

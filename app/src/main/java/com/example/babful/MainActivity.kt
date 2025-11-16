@@ -154,7 +154,7 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         composable(NavigationRoutes.PROFILE) {
             ProfileScreen(
                 onNavigateToLogin = {
-                    // ⭐️ [핵심] '로그아웃' 시, LOGIN으로 이동하고
+                    // ⭐️ [핵심 수정] '로그아웃' 시, LOGIN으로 이동하고
                     //          '메인 탭'(FEED)까지의 모든 스택을 제거
                     navController.navigate(NavigationRoutes.LOGIN) {
                         popUpTo(NavigationRoutes.FEED) {
