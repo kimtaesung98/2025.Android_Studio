@@ -13,22 +13,21 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    // 1. Hilt에게 DB 인스턴스 생성법을 알려줌
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext appContext: Context): BabfulDatabase {
         return Room.databaseBuilder(
             appContext,
             BabfulDatabase::class.java,
-            "babful_android.db" // ⭐️ Go 서버의 DB 파일과 이름 구분
+            "babful_android.db"
         ).build()
     }
 
-    // 2. Hilt에게 3개의 DAO 인스턴스 생성법을 알려줌
     @Provides
     @Singleton
     fun provideFeedDao(database: BabfulDatabase): FeedDao = database.feedDao()
 
+    // ⭐️ [점검 2] 이 '@Provides' 함수가 누락되었거나 철자가 틀리지 않았는지 확인하세요.
     @Provides
     @Singleton
     fun provideDeliveryDao(database: BabfulDatabase): DeliveryDao = database.deliveryDao()

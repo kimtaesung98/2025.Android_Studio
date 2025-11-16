@@ -3,20 +3,20 @@ import com.google.gson.annotations.SerializedName
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "deliveries") // ⭐️ [신규] Room 테이블로 지정
+@Entity(tableName = "deliveries")
 data class DeliveryItem(
-    @PrimaryKey // ⭐️ [신규] 서버 ID를 기본 키로 사용
+    @PrimaryKey
     @SerializedName("id")
     val id: String,
 
-    @SerializedName("store_name") // ⭐️ Go의 json:"store_name"과 일치
+    @SerializedName("store_name")
     val storeName: String,
 
     @SerializedName("store_image_url")
-    val storeImageUrl: String? = null,
+    val storeImageUrl: String? = null, // ⭐️ (Nullable 확인)
 
     @SerializedName("estimated_time_in_minutes")
-    val estimatedTimeInMinutes: Int,
+    val estimatedTimeInMinutes: Int? = 0, // ⭐️ [필수 확인] Int -> Int? (nullable)
 
     @SerializedName("status")
     val status: String = "조리중"

@@ -37,8 +37,9 @@ import androidx.navigation.NavType // ⭐️ [신규]
 import androidx.navigation.navArgument // ⭐️ [신규]
 import com.example.babful.ui.NavigationRoutes // ⭐️ [신규]
 import dagger.hilt.android.AndroidEntryPoint
-import com.example.babful.ui.feed.FeedScreen
-import com.example.babful.ui.theme.BabfulTheme
+import com.example.babful.ui.auth.LoginScreen // ⭐️ [신규]
+import com.example.babful.ui.auth.RegisterScreen // ⭐️ [신규]
+import com.example.babful.ui.SplashScreen // ⭐️ [신규]
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,9 +109,27 @@ fun MainScreen() {
 fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(
         navController = navController,
-        startDestination = NavigationRoutes.FEED, // ⭐️ 경로 상수 사용
+        startDestination = NavigationRoutes.SPLASH, // ⭐️ [수정] 시작점을 LOGIN -> SPLASH
         modifier = modifier
     ) {
+        // --- ⭐️ [신규] Splash Graph ---
+        composable(NavigationRoutes.SPLASH) {
+            SplashScreen(
+                onNavigateToLogin = {
+                    // ⭐️ LOGIN으로 이동하고 스택에서 SPLASH를 제거
+                    navController.navigate(NavigationRoutes.LOGIN) {
+                        popUpTo(NavigationRoutes.SPLASH) { inclusive = true }
+                    }
+                },
+                onNavigateToFeed = {
+                    // ⭐️ FEED로 이동하고 스택에서 SPLASH를 제거
+                    navController.navigate(NavigationRoutes.FEED) {
+                        popUpTo(NavigationRoutes.SPLASH) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(NavigationRoutes.FEED) {
             FeedScreen()
         }
@@ -126,7 +145,38 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 }
             )
         }
-
+        // --- ⭐️ [신규] Auth Graph ---
+        composable(NavigationRoutes.LOGIN) {
+            LoginScreen(
+                onLoginSuccess = {
+                    // ⭐️ [핵심] 로그인 성공 시, FEED로 이동하고 스택에서 LOGIN을 제거
+                    navController.navigate(NavigationRoutes.FEED) {
+                        popUpTo(NavigationRoutes.LOGIN) {
+                            inclusive = true // ⭐️ LOGIN 화면 포함해서 스택에서 제거
+                        }
+                        launchSingleTop = true // ⭐️ FEED가 이미 스택에 있으면 재사용
+                    }
+                },
+                onNavigateToRegister = {
+                    navController.navigate(NavigationRoutes.REGISTER)
+                }
+            )
+        }
+        composable(NavigationRoutes.REGISTER) {
+            RegisterScreen(
+                onRegisterSuccess = {
+                    // ⭐️ (임시) 회원가입 성공 시, LOGIN으로 이동
+                    navController.navigate(NavigationRoutes.LOGIN) {
+                        popUpTo(NavigationRoutes.LOGIN) { // 스택에 REGISTER가 쌓이지 않도록
+                            inclusive = true
+                        }
+                    }
+                },
+                onNavigateToLogin = {
+                    navController.popBackStack() // ⭐️ LOGIN 화면으로 '뒤로가기'
+                }
+            )
+        }
         // ⭐️ [신규] 가게 메뉴 상세 화면 경로 정의
         composable(
             route = NavigationRoutes.STORE_MENU,

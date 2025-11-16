@@ -1,11 +1,13 @@
 package com.example.babful.data.model
-import com.google.gson.annotations.SerializedName
-import androidx.room.Entity // ⭐️ [신규]
-import androidx.room.PrimaryKey // ⭐️ [신규]
 
-@Entity(tableName = "feeds") // ⭐️ [신규] Room 테이블로 지정
+import androidx.room.Entity
+import androidx.room.Ignore
+import androidx.room.PrimaryKey
+import com.google.gson.annotations.SerializedName
+
+@Entity(tableName = "feeds")
 data class FeedItem(
-    @PrimaryKey // ⭐️ [신규] 서버 ID를 기본 키로 사용
+    @PrimaryKey
     @SerializedName("id")
     val id: String,
 
@@ -22,8 +24,12 @@ data class FeedItem(
     val content: String,
 
     @SerializedName("likes_count")
-    val likesCount: Int = 0,
+    val likesCount: Int? = 0, // 33단계 (Nullable Fix)
 
-    // ⭐️ [신규] Room DB 캐시 구분을 위한 반경 (API 응답에는 없음)
     var radius: Int = 0
-)
+    // ⭐️ 'isLiked'는 Room 생성자에 없습니다.
+) {
+    @SerializedName("is_liked") // ⭐️ Go 서버의 `json:"is_liked"`와 이름 매칭
+    @Ignore // ⭐️ Room은 이 필드를 무시
+    var isLiked: Boolean = false // ⭐️ Gson이 이 값을 (true/false)로 채워줌
+}

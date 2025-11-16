@@ -1,38 +1,51 @@
 package com.example.babful.data.repository
 
 import android.util.Log
-import com.example.babful.data.db.FeedDao // ⭐️ [신규]
+import com.example.babful.data.db.FeedDao
 import com.example.babful.data.model.FeedItem
 import com.example.babful.data.network.ApiService
+import com.example.babful.data.network.LikeRequest // ⭐️ [신규]
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class FeedRepository @Inject constructor(
     private val apiService: ApiService,
-    private val feedDao: FeedDao // ⭐️ [신규] Hilt가 DAO를 주입
+    private val feedDao: FeedDao
 ) {
 
+    // (getFeedItemsFromNetwork - 24단계 SWR)
     suspend fun getFeedItemsFromNetwork(radius: Int, isRefresh: Boolean): List<FeedItem> {
-        return try {
-            val networkItems = apiService.getFeedItems(radius = radius)
-            Log.d("FeedRepository", "[SWR] Go API 호출 성공 (radius: $radius)")
+        val networkItems = apiService.getFeedItems(radius = radius)
+        Log.d("FeedRepository", "Go API 호출 성공 (radius: $radius)")
 
-            networkItems.forEach { it.radius = radius }
-
-            if (isRefresh) {
-                feedDao.clearAllFeeds() // 5km 새로고침 시 전체 캐시 삭제
-            }
-            feedDao.insertAll(networkItems)
-
-            networkItems // 네트워크 데이터를 반환
-        } catch (e: Exception) {
-            Log.e("FeedRepository", "[SWR] Go API 호출 실패", e)
-            throw e // ⭐️ 실패 시 ViewModel이 알 수 있도록 예외를 다시 던짐
+        // (API 응답에 isLiked가 포함되므로, Room에 저장하기 전에 가공)
+        networkItems.forEach {
+            it.radius = radius
+            // ⭐️ (Room은 isLiked를 @Ignore 하므로, Room 저장 시 isLiked 상태는 유실됨)
         }
+
+        if (isRefresh) {
+            feedDao.clearAllFeeds()
+        }
+        feedDao.insertAll(networkItems)
+
+        return networkItems
     }
+
+    // (getFeedItemsFromCache - 24단계 SWR)
     suspend fun getFeedItemsFromCache(radius: Int): List<FeedItem> {
-        Log.d("FeedRepository", "[SWR] Room DB 캐시 조회 (radius: $radius)")
+        Log.d("FeedRepository", "Room DB 캐시 조회 (radius: $radius)")
+        // ⭐️ (Room에 저장된 isLiked는 항상 false(기본값)임)
         return feedDao.getFeedsByRadius(radius)
+    }
+
+    suspend fun likeFeedItem(feedId: String) {
+        apiService.likeFeedItem(LikeRequest(feedId = feedId))
+    }
+
+    // ⭐️ [신규] '좋아요 취소' API 호출
+    suspend fun unlikeFeedItem(feedId: String) {
+        apiService.unlikeFeedItem(LikeRequest(feedId = feedId))
     }
 }

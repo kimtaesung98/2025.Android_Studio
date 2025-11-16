@@ -45,6 +45,8 @@ import androidx.compose.runtime.LaunchedEffect // ⭐️ [신규]
 import androidx.compose.runtime.derivedStateOf // ⭐️ [신규]
 import androidx.compose.runtime.remember // ⭐️ [신규]
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.material.icons.filled.Favorite // ⭐️ [신규] (채워진 하트)
+import androidx.compose.material.icons.filled.FavoriteBorder // ⭐️ [신규] (빈 하트)
 
 @Composable
 fun FeedScreen(
@@ -117,7 +119,14 @@ fun FeedScreen(
             state = listState // ⭐️ [수정] LazyListState 연결
         ) {
             items(uiState.feedItems, key = { it.id }) { item ->
-                FeedItemView(item = item)
+                FeedItemView(
+                    item = item,
+                    // ⭐️ [신규] 클릭 이벤트를 ViewModel까지 전달
+                    onLikeClicked = {
+                        Log.d("FeedScreen", "Like 클릭됨: ${item.id}")
+                        viewModel.likeFeedItem(item.id)
+                    }
+                )
             }
 
             // ⭐️ [신규] 4. '더보기' 로딩 UI (목록 맨 아래에 추가)
@@ -137,7 +146,10 @@ fun FeedScreen(
     }
 }
 @Composable
-fun FeedItemView(item: FeedItem) {
+fun FeedItemView(
+    item: FeedItem,
+    onLikeClicked: () -> Unit // ⭐️ [신규] 클릭 이벤트 람다
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,20 +189,44 @@ fun FeedItemView(item: FeedItem) {
                 .background(Color.LightGray), // ⭐️ 로딩 중 배경색
             contentScale = ContentScale.Crop
         )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp), // 아이콘 버튼 패딩 고려
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onLikeClicked) {
+                Icon(
+                    // ⭐️ [핵심] isLiked가 true면 '채워진 하트', false면 '빈 하트'
+                    imageVector = if (item.isLiked) {
+                        Icons.Default.Favorite
+                    } else {
+                        Icons.Default.FavoriteBorder
+                    },
+                    contentDescription = "좋아요",
+                    // ⭐️ [핵심] isLiked가 true면 '빨간색', false면 '회색'
+                    tint = if (item.isLiked) Color.Red else Color.Gray
+                )
+            }
+            // (다른 아이콘들... 예: 댓글)
+            // IconButton(onClick = { /* TODO */ }) { ... }
+        }
 
-        // 3. 글 내용 (이미지 아래로 이동)
+        // 4. 좋아요 카운트 (Row 아이콘 아래로 이동)
+        Text(
+            // ⭐️ (33단계 Int? 수정 반영)
+            text = "좋아요 ${item.likesCount ?: 0}개",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold, // ⭐️ 글씨 굵게
+            color = Color.Black, // ⭐️ 색상 변경
+            modifier = Modifier.padding(horizontal = 16.dp) // ⭐️ 패딩 조정
+        )
+
+        // 5. 글 내용 (좋아요 카운트 아래로 이동)
         Text(
             text = item.content,
             fontSize = 15.sp,
-            modifier = Modifier.padding(16.dp)
-        )
-
-        // 4. 좋아요 (글 내용 아래로 이동)
-        Text(
-            text = "좋아요 ${item.likesCount}개",
-            fontSize = 14.sp,
-            color = Color.DarkGray,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp) // ⭐️ 패딩 조정
         )
     }
 }

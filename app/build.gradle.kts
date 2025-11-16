@@ -104,6 +104,11 @@ dependencies {
     // ⭐️ [신규] Truth (Google의 Assert 라이브러리)
     testImplementation("com.google.truth:truth:1.4.2")
 
+    // ⭐️ [신규] Retrofit이 내부적으로 쓰는 OkHttp (Interceptor를 위해 명시적 추가)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // (로그 확인용)
+    // ⭐️ [신규] DataStore (JWT 토큰 저장소)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }
 // ⭐️ [신규] Hilt 플러그인을 kapt에 적용
 kapt {
