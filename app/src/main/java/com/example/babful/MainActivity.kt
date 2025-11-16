@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -40,6 +38,12 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.example.babful.ui.auth.LoginScreen // ⭐️ [신규]
 import com.example.babful.ui.auth.RegisterScreen // ⭐️ [신규]
 import com.example.babful.ui.SplashScreen // ⭐️ [신규]
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person // ⭐️ [신규]
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ShoppingCart
+import com.example.babful.ui.profile.ProfileScreen // ⭐️ [신규]
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +62,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
-    val navItems = listOf(Screen.Feed, Screen.Delivery, Screen.Shorts)
+    val navItems = listOf(Screen.Feed, Screen.Delivery, Screen.Shorts, Screen.Profile) // ⭐️ [수정]
     // ⭐️ [신규] 현재 경로를 확인하여 BottomBar를 보여줄지 결정
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -66,7 +70,8 @@ fun MainScreen() {
     val bottomNavRoutes = listOf(
         NavigationRoutes.FEED,
         NavigationRoutes.DELIVERY,
-        NavigationRoutes.SHORTS
+        NavigationRoutes.SHORTS,
+        NavigationRoutes.PROFILE // ⭐️ [수정]
     )
     val shouldShowBottomBar = currentDestination?.route in bottomNavRoutes
 
@@ -145,6 +150,21 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 }
             )
         }
+        // ⭐️ [신규] 5. Profile Graph
+        composable(NavigationRoutes.PROFILE) {
+            ProfileScreen(
+                onNavigateToLogin = {
+                    // ⭐️ [핵심] '로그아웃' 시, LOGIN으로 이동하고
+                    //          '메인 탭'(FEED)까지의 모든 스택을 제거
+                    navController.navigate(NavigationRoutes.LOGIN) {
+                        popUpTo(NavigationRoutes.FEED) {
+                            inclusive = true // ⭐️ FEED 화면 포함해서 스택에서 제거
+                        }
+                        // (LOGIN이 스택의 유일한 화면이 됨)
+                    }
+                }
+            )
+        }
         // --- ⭐️ [신규] Auth Graph ---
         composable(NavigationRoutes.LOGIN) {
             LoginScreen(
@@ -190,11 +210,12 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         }
     }
 }
-// [수정] Screen Sealed Class (경로 상수를 사용하도록 변경)
+// [수정] 4번째 탭 아이콘 추가
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-    object Feed : Screen(NavigationRoutes.FEED, "피드", Icons.Default.Home)
-    object Delivery : Screen(NavigationRoutes.DELIVERY, "배달", Icons.Default.List)
-    object Shorts : Screen(NavigationRoutes.SHORTS, "쇼츠", Icons.Default.PlayArrow)
+    data object Feed : Screen(NavigationRoutes.FEED, "피드", Icons.Default.Home)
+    data object Delivery : Screen(NavigationRoutes.DELIVERY, "배달", Icons.Default.ShoppingCart)
+    data object Shorts : Screen(NavigationRoutes.SHORTS, "쇼츠", Icons.Default.PlayArrow)
+    data object Profile : Screen(NavigationRoutes.PROFILE, "프로필", Icons.Default.Person) // ⭐️ [신규]
 }
 
 @Composable
@@ -206,7 +227,6 @@ fun PlaceholderScreen(title: String) {
         Text(text = "$title (개발 예정)")
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable

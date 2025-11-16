@@ -31,16 +31,16 @@ interface ApiService {
 
     @GET("shorts")
     suspend fun getShortsItems(): List<ShortsItem>
-
+    
     @POST("login")
     suspend fun login(@Body request: AuthRequest): AuthResponse
 
     @POST("register")
     suspend fun register(@Body request: AuthRequest)
-
+    
     @POST("like")
     suspend fun likeFeedItem(@Body request: LikeRequest)
-
+    
     // ⭐️ [신규] 5. '좋아요 취소' (POST)
     @POST("unlike")
     suspend fun unlikeFeedItem(@Body request: LikeRequest)
