@@ -31,12 +31,16 @@ type FeedItem struct {
 	LikesCount          *int    `json:"likes_count"`
 	IsLiked             bool    `json:"is_liked"` // ⭐️ [신규] '좋아요' 여부 (JOIN 결과)
 }
+
+// ⭐️ [수정] DeliveryItem에 위도/경도 추가
 type DeliveryItem struct {
 	ID                     string  `json:"id"`
 	StoreName              string  `json:"store_name"`
-	StoreImageUrl          *string `json:"store_image_url"`           // ⭐️ FIX: sql.NullString -> *string
-	EstimatedTimeInMinutes *int    `json:"estimated_time_in_minutes"` // ⭐️ FIX: sql.NullInt64 -> *int
+	StoreImageUrl          *string `json:"store_image_url"`
+	EstimatedTimeInMinutes *int    `json:"estimated_time_in_minutes"`
 	Status                 string  `json:"status"`
+	Lat                    float64 `json:"lat"` // ⭐️ 위도 (Latitude)
+	Lng                    float64 `json:"lng"` // ⭐️ 경도 (Longitude)
 }
 type ShortsItem struct {
 	ID        string  `json:"id"`
@@ -127,14 +131,16 @@ func setupDatabase(db *sql.DB) {
         likes_count INTEGER
     )`)
 
-	// --- Deliveries 테이블 ---
+	// ⭐️ [수정] Deliveries 테이블 (lat, lng 추가)
 	db.Exec(`CREATE TABLE IF NOT EXISTS deliveries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        store_name TEXT,
-        store_image_url TEXT,
-        estimated_time_in_minutes INTEGER,
-        status TEXT
-    )`)
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		store_name TEXT,
+		store_image_url TEXT,
+		estimated_time_in_minutes INTEGER,
+		status TEXT,
+		lat REAL, 
+		lng REAL
+	)`)
 
 	// --- Shorts 테이블 ---
 	db.Exec(`CREATE TABLE IF NOT EXISTS shorts (
@@ -194,10 +200,12 @@ func setupDatabase(db *sql.DB) {
         (5, 15, 'SQLite-15km_user_1', '이것은 SQLite DB에서 온 15km 반경 피드입니다.'),
         (6, 15, 'SQLite-15km_user_2', '15km 반경의 두 번째 피드.')
     `)
-	db.Exec(`INSERT OR IGNORE INTO deliveries (id, store_name, status) VALUES
-        (1, 'SQLite-가게_A', '배달중'),
-        (2, 'SQLite-가게_B', '조리중')
-    `)
+	// ⭐️ [수정] Deliveries 시드 데이터 (좌표 포함 - 서울 강남역 인근 예시)
+	db.Exec(`INSERT OR IGNORE INTO deliveries (id, store_name, status, lat, lng) VALUES
+		(1, 'SQLite-가게_A (강남역)', '배달중', 37.4979, 127.0276),
+		(2, 'SQLite-가게_B (역삼역)', '조리중', 37.5006, 127.0364),
+        (3, 'SQLite-가게_C (신논현)', '준비중', 37.5045, 127.0250)
+	`)
 	db.Exec(`INSERT OR IGNORE INTO shorts (id, store_name, store_id) VALUES
         (1, 'SQLite-쇼츠가게_1', 'store_1'),
         (2, 'SQLite-쇼츠가게_2', 'store_2')
@@ -324,9 +332,12 @@ func feedHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 /*																																						 */
 /*																																						 */
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ⭐️ [수정] deliveryHandler (좌표 스캔 추가)
 func deliveryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Println("안드로이드로부터 /delivery 요청 수신 (DB 조회)")
-	rows, err := db.Query("SELECT id, store_name, store_image_url, estimated_time_in_minutes, status FROM deliveries")
+
+	// ⭐️ lat, lng 컬럼 조회 추가
+	rows, err := db.Query("SELECT id, store_name, store_image_url, estimated_time_in_minutes, status, lat, lng FROM deliveries")
 	if err != nil {
 		log.Printf("DB 쿼리 오류 (Delivery): %v", err)
 		http.Error(w, "DB 오류", http.StatusInternalServerError)
@@ -337,7 +348,8 @@ func deliveryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var deliveryItems []DeliveryItem
 	for rows.Next() {
 		var item DeliveryItem
-		err := rows.Scan(&item.ID, &item.StoreName, &item.StoreImageUrl, &item.EstimatedTimeInMinutes, &item.Status)
+		// ⭐️ lat, lng 스캔 추가
+		err := rows.Scan(&item.ID, &item.StoreName, &item.StoreImageUrl, &item.EstimatedTimeInMinutes, &item.Status, &item.Lat, &item.Lng)
 		if err != nil {
 			log.Printf("DB 스캔 오류 (Delivery): %v", err)
 			http.Error(w, "DB 오류", http.StatusInternalServerError)
