@@ -39,5 +39,14 @@ class DeliveryRepository @Inject constructor(
         return deliveryDao.getAllDeliveries()
     }
 
-    // ⭐️ [제거] 3. 기존 23단계의 getDeliveryItems (try-catch 래퍼) 함수는 삭제됨
+    // ⭐️ [신규] 경로 데이터 가져오기
+    suspend fun getRoutePoints(startLat: Double, startLng: Double, endLat: Double, endLng: Double): String? {
+        val origin = "$startLat,$startLng"
+        val dest = "$endLat,$endLng"
+
+        val response = apiService.getDirections(origin, dest)
+
+        // 첫 번째 경로의 포인트 문자열 반환 (없으면 null)
+        return response.routes.firstOrNull()?.overviewPolyline?.points
+    }
 }

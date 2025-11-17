@@ -138,8 +138,14 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
         composable(NavigationRoutes.FEED) {
             FeedScreen()
         }
+        // ⭐️ [수정] DELIVERY 라우트
         composable(NavigationRoutes.DELIVERY) {
-            DeliveryScreen()
+            DeliveryScreen(
+                onNavigateToStore = { storeId ->
+                    // ⭐️ '배달' 탭에서 가게 클릭 시 -> '가게 메뉴(구독/결제)' 화면으로 이동
+                    navController.navigate(NavigationRoutes.storeMenuRoute(storeId))
+                }
+            )
         }
         composable(NavigationRoutes.SHORTS) {
             // ⭐️ [수정] ShortsScreen에 이벤트 람다(onNavigateToStore) 전달

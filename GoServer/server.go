@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io" // ⭐️ [신규] HTTP 응답 읽기용
 	"log"
 	"net/http"
 	"strconv"
@@ -21,7 +22,7 @@ import (
 /*																																						 */
 /*																																						 */
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// --- 1. 구조체 정의 ---
 type FeedItem struct {
 	ID                  string  `json:"id"`
 	UserName            string  `json:"user_name"`
@@ -29,35 +30,29 @@ type FeedItem struct {
 	PostImageUrl        *string `json:"post_image_url"`
 	Content             string  `json:"content"`
 	LikesCount          *int    `json:"likes_count"`
-	IsLiked             bool    `json:"is_liked"` // ⭐️ [신규] '좋아요' 여부 (JOIN 결과)
+	IsLiked             bool    `json:"is_liked"`
 }
-
-// ⭐️ [수정] DeliveryItem에 위도/경도 추가
 type DeliveryItem struct {
 	ID                     string  `json:"id"`
 	StoreName              string  `json:"store_name"`
 	StoreImageUrl          *string `json:"store_image_url"`
 	EstimatedTimeInMinutes *int    `json:"estimated_time_in_minutes"`
 	Status                 string  `json:"status"`
-	Lat                    float64 `json:"lat"` // ⭐️ 위도 (Latitude)
-	Lng                    float64 `json:"lng"` // ⭐️ 경도 (Longitude)
+	Lat                    float64 `json:"lat"` // 41단계 (지도 좌표)
+	Lng                    float64 `json:"lng"` // 41단계 (지도 좌표)
 }
 type ShortsItem struct {
 	ID        string  `json:"id"`
 	StoreName string  `json:"store_name"`
 	StoreID   string  `json:"store_id"`
-	VideoURL  *string `json:"video_url"` // ⭐️ FIX: sql.NullString -> *string
+	VideoURL  *string `json:"video_url"`
 }
-
-// ⭐️ [신규] User 구조체 (DB 저장용)
 type User struct {
 	ID             int    `json:"id"`
 	Email          string `json:"email"`
-	HashedPassword string `json:"-"`      // JSON 응답에는 포함하지 않음
-	Points         int    `json:"points"` // ⭐️ [신규] 사용자 포인트 잔액
+	HashedPassword string `json:"-"`
+	Points         int    `json:"points"` // 39단계 (포인트)
 }
-
-// ⭐️ [신규] API 요청/응답용 구조체
 type AuthRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -65,10 +60,29 @@ type AuthRequest struct {
 type AuthResponse struct {
 	Token string `json:"token"`
 }
-
-// ⭐️ [신규] '좋아요' 요청 본문
 type LikeRequest struct {
 	FeedID string `json:"feed_id"`
+}
+type SubscribeRequest struct {
+	StoreID string `json:"store_id"`
+}
+type StoreInfo struct {
+	ID           string  `json:"id"`
+	StoreName    string  `json:"store_name"`
+	BannerImage  *string `json:"banner_image"`
+	IsSubscribed bool    `json:"is_subscribed"`
+}
+type Transaction struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	Amount    int       `json:"amount"`
+	Type      string    `json:"type"`
+	Timestamp time.Time `json:"timestamp"`
+	OrderID   *string   `json:"order_id"` // 40.1단계 (악용 방지)
+}
+type PaymentRequest struct {
+	AmountPaid int    `json:"amount_paid"`
+	OrderID    string `json:"order_id"`
 }
 
 var jwtKey = []byte("my_secret_key_12345")
@@ -78,39 +92,18 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// ⭐️ [신규] '가게 구독' 요청 본문
-type SubscribeRequest struct {
-	StoreID string `json:"store_id"`
+// ⭐️ [신규] Google Directions API 응답 구조체 (필요한 것만 정의)
+type GoogleDirectionsResponse struct {
+	Routes []struct {
+		OverviewPolyline struct {
+			Points string `json:"points"` // ⭐️ 이 '암호화된 문자열'이 경로 선 데이터입니다.
+		} `json:"overview_polyline"`
+	} `json:"routes"`
+	Status string `json:"status"`
 }
 
-// ⭐️ [신규] '가게 정보' 응답 본문
-type StoreInfo struct {
-	ID           string  `json:"id"`
-	StoreName    string  `json:"store_name"`
-	BannerImage  *string `json:"banner_image"`
-	IsSubscribed bool    `json:"is_subscribed"` // ⭐️ '구독' 여부 (JOIN 결과)
-}
-
-type Transaction struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	Amount    int       `json:"amount"`
-	Type      string    `json:"type"`
-	Timestamp time.Time `json:"timestamp"`
-	OrderID   *string   `json:"order_id"` // ⭐️ [신규] (악용 방지용)
-}
-
-// ⭐️ [신규] 포인트 사용 요청
-type PointUseRequest struct {
-	Amount int    `json:"amount"`
-	Reason string `json:"reason"`
-}
-
-// ⭐️ [수정] 38단계의 PointUseRequest -> PaymentRequest
-type PaymentRequest struct {
-	AmountPaid int    `json:"amount_paid"` // (예: 10000)
-	OrderID    string `json:"order_id"`    // (예: "ORD-12345")
-}
+// ⭐️ [필수] 42단계에서 발급받은 본인의 API Key를 여기에 넣으세요.
+const GOOGLE_MAPS_API_KEY = "AIzaSyCEQ_Z6wGGFraGL96QHO_65G_KYQZ7yGcY"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /*																																						 */
@@ -572,43 +565,34 @@ func unlikeFeedHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 /*																																						 */
 /*																																						 */
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ⭐️ [신규] 7. '가게 정보' 핸들러 (GET)
+// ⭐️ [수정] 6. storeHandler (배달/쇼츠 ID 호환)
+// ⭐️ [수정] storeHandler (43단계 Fix: 배달/쇼츠 ID 호환)
 func storeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	// (예: /store/store_1)
 	storeID := strings.TrimPrefix(r.URL.Path, "/store/")
 	log.Printf("안드로이드로부터 /store/%s (가게 정보) 요청 수신", storeID)
 
-	var userID int // '0'이면 비로그인
-
-	// 1. JWT 검증 및 'userID' 추출
-	claims, err := verifyJWT(r)
-	if err == nil {
+	var userID int
+	if claims, err := verifyJWT(r); err == nil {
 		db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
 	}
 
-	// 2. ⭐️ SQL 쿼리 (LEFT JOIN 추가)
-	// (shorts 테이블에서 가게 정보를 가져오고, subscriptions 테이블을 JOIN하여 '구독 여부' 확인)
-	query := `
-        SELECT 
-            s.store_id, s.store_name, 
-            (sub.user_id IS NOT NULL) AS isSubscribed
-        FROM 
-            shorts s
-        LEFT JOIN 
-            subscriptions sub ON s.store_id = sub.store_id AND sub.user_id = ?
-        WHERE 
-            s.store_id = ?
-        LIMIT 1
-    `
 	var store StoreInfo
-	// (BannerImage는 이 예제에서 NULL이므로 스캔 생략)
-	err = db.QueryRow(query, userID, storeID).Scan(&store.ID, &store.StoreName, &store.IsSubscribed)
+	// 1. Deliveries 테이블 먼저 조회 (ID가 숫자인 경우)
+	queryDelivery := `SELECT d.id, d.store_name, (sub.user_id IS NOT NULL) FROM deliveries d LEFT JOIN subscriptions sub ON d.id = sub.store_id AND sub.user_id = ? WHERE d.id = ?`
+	err := db.QueryRow(queryDelivery, userID, storeID).Scan(&store.ID, &store.StoreName, &store.IsSubscribed)
+
+	if err == sql.ErrNoRows {
+		// 2. 없으면 Shorts 테이블 조회 (ID가 문자열인 경우)
+		log.Printf("Deliveries 테이블에 없음. Shorts 테이블 조회 시도...")
+		queryShorts := `SELECT s.store_id, s.store_name, (sub.user_id IS NOT NULL) FROM shorts s LEFT JOIN subscriptions sub ON s.store_id = sub.store_id AND sub.user_id = ? WHERE s.store_id = ?`
+		err = db.QueryRow(queryShorts, userID, storeID).Scan(&store.ID, &store.StoreName, &store.IsSubscribed)
+	}
+
 	if err != nil {
-		log.Printf("DB 쿼리 오류 (Store JOIN): %v", err)
+		log.Printf("DB 쿼리 오류 (Store 찾기 실패): %v", err)
 		http.Error(w, "Store not found", http.StatusNotFound)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(store)
 }
@@ -735,68 +719,35 @@ func pointHistoryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 /*																																						 */
 /*																																						 */
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ⭐️ [수정] 13. 38단계의 'usePointsHandler' -> 'paymentSuccessHandler' (적립)
+// ⭐️ [복구] paymentSuccessHandler (40.1단계 코드)
 func paymentSuccessHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	log.Println("안드로이드로부터 /payment/success (결제/적립) 요청 수신")
-	claims, err := verifyJWT(r) // --- 1. (인가) ---
+	log.Println("안드로이드로부터 /payment/success 요청 수신")
+	claims, err := verifyJWT(r)
 	if err != nil {
-		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		http.Error(w, "Auth required", 401)
 		return
 	}
-	var req PaymentRequest // --- 2. (요청 파싱) ---
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-	if req.AmountPaid <= 0 {
-		http.Error(w, "Amount must be positive", http.StatusBadRequest)
+	var req PaymentRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "Bad Request", 400)
 		return
 	}
 
-	// --- 3. (DB 작업) '누가' ---
 	var userID int
-	err = db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
+	db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
 
-	// ⭐️ --- 4. (비즈니스 로직) 포인트 '적립' 계산 (1%) ---
-	pointsEarned := int(float64(req.AmountPaid) * 0.01) // (예: 10000원 -> 100P)
-
-	// ⭐️ --- 5. (DB 트랜잭션) '악용 방지' 적용 ---
-	tx, err := db.Begin()
-	if err != nil {
-		http.Error(w, "Transaction error", http.StatusInternalServerError)
-		return
-	}
-
-	// 5-1. ⭐️ transactions 테이블: '적립' 내역 기록 (악용 방지)
-	// (order_id에 UNIQUE 제약조건이 있으므로, 중복 시도 시 이 쿼리가 '실패'함)
-	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type, order_id) VALUES (?, ?, ?, ?)",
-		userID, pointsEarned, "적립: 주문", req.OrderID)
-	if err != nil {
-		tx.Rollback() // ⭐️ 롤백
-		log.Printf("포인트 적립 실패 (악용/중복 의심): %v", err)
-		http.Error(w, "Duplicate order or DB error", http.StatusConflict) // 409 Conflict
-		return
-	}
-
-	// 5-2. users 테이블: 잔액 증가
-	_, err = tx.Exec("UPDATE users SET points = points + ? WHERE id = ?", pointsEarned, userID)
+	pointsEarned := int(float64(req.AmountPaid) * 0.01)
+	tx, _ := db.Begin()
+	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type, order_id) VALUES (?, ?, ?, ?)", userID, pointsEarned, "적립: 주문", req.OrderID)
 	if err != nil {
 		tx.Rollback()
-		http.Error(w, "Tx error 2", http.StatusInternalServerError)
+		http.Error(w, "Duplicate/Error", 409)
 		return
 	}
+	tx.Exec("UPDATE users SET points = points + ? WHERE id = ?", pointsEarned, userID)
+	tx.Commit()
 
-	// 5-3. 트랜잭션 '커밋' (최종 승인)
-	if err := tx.Commit(); err != nil {
-		http.Error(w, "Commit error", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("포인트 적립 성공: UserID %d, %dP 적립 (Order: %s)", userID, pointsEarned, req.OrderID)
+	log.Printf("포인트 적립 성공: UserID %d, %dP 적립", userID, pointsEarned)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -828,6 +779,51 @@ func profileHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*																																						 */
+/*																																						 */
+/*																																						 */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ⭐️ [신규] 14. 길찾기 핸들러 (Proxy)
+func directionsHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. 파라미터 파싱 (origin=위도,경도 & dest=위도,경도)
+	origin := r.URL.Query().Get("origin")
+	dest := r.URL.Query().Get("dest")
+
+	log.Printf("길찾기 요청: %s -> %s", origin, dest)
+
+	if origin == "" || dest == "" {
+		http.Error(w, "Missing origin or dest", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Google Directions API 호출 (Go 서버가 대신 호출)
+	googleURL := fmt.Sprintf(
+		"https://maps.googleapis.com/maps/api/directions/json?origin=%s&destination=%s&key=%s",
+		origin, dest, GOOGLE_MAPS_API_KEY,
+	)
+
+	resp, err := http.Get(googleURL)
+	if err != nil {
+		log.Printf("Google API 호출 실패: %v", err)
+		http.Error(w, "Failed to call Google API", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	// 3. Google 응답 읽기
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to read response", http.StatusInternalServerError)
+		return
+	}
+
+	// 4. 안드로이드에게 그대로 전달 (또는 파싱해서 points만 줄 수도 있음)
+	// 여기서는 Google의 JSON 전체를 그대로 토스(Pass-through)합니다.
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /*																																						 */
@@ -837,112 +833,54 @@ func profileHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// --- 5. Main 함수 ---
 func main() {
-	db, err := sql.Open("sqlite", "./babful.db") // ⭐️ (22단계 Plan B)
+	db, err := sql.Open("sqlite", "./babful.db")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 	setupDatabase(db)
 
-	// ⭐️ [수정] 6. 핸들러 라우팅 수정 (POST만 허용하도록)
-	http.HandleFunc("/feed", func(w http.ResponseWriter, r *http.Request) {
-		feedHandler(w, r, db)
-	})
-	http.HandleFunc("/delivery", func(w http.ResponseWriter, r *http.Request) {
-		deliveryHandler(w, r, db)
-	})
-	http.HandleFunc("/shorts", func(w http.ResponseWriter, r *http.Request) {
-		shortsHandler(w, r, db)
-	})
-
-	// ⭐️ [신규] 7. Auth 핸들러 (POST 전용)
-	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		registerHandler(w, r, db)
-	})
-	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		loginHandler(w, r, db)
-	})
-
-	// ⭐️ [신규] 8. Like 핸들러 (POST 전용)
-	http.HandleFunc("/like", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		likeFeedHandler(w, r, db)
-	})
-
-	// ⭐️ [신규] 9. Unlike 핸들러 (POST 전용)
-	http.HandleFunc("/unlike", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		unlikeFeedHandler(w, r, db)
-	})
-
-	// ⭐️ [신규] 10. Store 핸들러 (GET) - (주의: 'store/'는 /feed 등 보다 '나중에' 등록)
+	// 라우팅 등록 (필수 확인)
+	http.HandleFunc("/feed", func(w http.ResponseWriter, r *http.Request) { feedHandler(w, r, db) })
+	http.HandleFunc("/delivery", func(w http.ResponseWriter, r *http.Request) { deliveryHandler(w, r, db) })
+	http.HandleFunc("/shorts", func(w http.ResponseWriter, r *http.Request) { shortsHandler(w, r, db) })
 	http.HandleFunc("/store/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Only GET", http.StatusMethodNotAllowed)
+		if r.Method != "GET" {
+			http.Error(w, "GET only", 405)
 			return
 		}
-		storeHandler(w, r, db)
+		storeHandler(w, r, db) // ⭐️ 수정된 핸들러
 	})
 
-	// ⭐️ [신규] 11. Subscribe/Unsubscribe 핸들러 (POST)
-	http.HandleFunc("/subscribe", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST", http.StatusMethodNotAllowed)
-			return
-		}
-		subscribeHandler(w, r, db)
-	})
-	http.HandleFunc("/unsubscribe", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST", http.StatusMethodNotAllowed)
-			return
-		}
-		unsubscribeHandler(w, r, db)
-	})
-
-	// ⭐️ [신규] 12. Points 핸들러
-	http.HandleFunc("/points/history", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Only GET", http.StatusMethodNotAllowed)
-			return
-		}
-		pointHistoryHandler(w, r, db)
-	})
-
-	// ⭐️ [수정]  38단계의 /points/use -> /payment/success
+	// ⭐️ [복구] 결제 핸들러 라우팅
 	http.HandleFunc("/payment/success", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST", http.StatusMethodNotAllowed)
+		if r.Method != "POST" {
+			http.Error(w, "POST only", 405)
 			return
 		}
 		paymentSuccessHandler(w, r, db)
 	})
 
-	// ⭐️ [신규] 13. Profile 핸들러
-	http.HandleFunc("/profile/me", func(w http.ResponseWriter, r *http.Request) {
+	// (기타 라우팅)
+	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) { registerHandler(w, r, db) })
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) { loginHandler(w, r, db) })
+	http.HandleFunc("/like", func(w http.ResponseWriter, r *http.Request) { likeFeedHandler(w, r, db) })
+	http.HandleFunc("/unlike", func(w http.ResponseWriter, r *http.Request) { unlikeFeedHandler(w, r, db) })
+	http.HandleFunc("/subscribe", func(w http.ResponseWriter, r *http.Request) { subscribeHandler(w, r, db) })
+	http.HandleFunc("/unsubscribe", func(w http.ResponseWriter, r *http.Request) { unsubscribeHandler(w, r, db) })
+	http.HandleFunc("/profile/me", func(w http.ResponseWriter, r *http.Request) { profileHandler(w, r, db) })
+	http.HandleFunc("/points/history", func(w http.ResponseWriter, r *http.Request) { pointHistoryHandler(w, r, db) })
+	// ⭐️ [신규] 14. Directions 라우팅
+	http.HandleFunc("/directions", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			http.Error(w, "Only GET", http.StatusMethodNotAllowed)
+			http.Error(w, "GET only", http.StatusMethodNotAllowed)
 			return
 		}
-		profileHandler(w, r, db)
+		directionsHandler(w, r)
 	})
 
-	// --- 서버 시작 ---
-	fmt.Println("Go 백엔드 서버(Auth v6 - Like Toggle)가 http://localhost:8080 에서 실행 중입니다...")
-	log.Fatal(http.ListenAndServe(":8080", nil)) // ⭐️ 8080 포트
+	fmt.Println("Go 백엔드 서버(Auth v12 - Integrated Fix)가 http://localhost:8080 에서 실행 중입니다...")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

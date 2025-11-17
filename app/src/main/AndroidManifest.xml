@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.babful"> <uses-permission android:name="android.permission.INTERNET" />
+    package="com.example.babful">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -13,6 +18,11 @@
         android:theme="@style/Theme.Babful"
         android:name=".BabfulApplication"
         android:usesCleartextTraffic="true">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyCEQ_Z6wGGFraGL96QHO_65G_KYQZ7yGcY" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

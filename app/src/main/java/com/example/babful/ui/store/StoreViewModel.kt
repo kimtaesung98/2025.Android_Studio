@@ -5,8 +5,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.babful.data.model.StoreInfo
-import com.example.babful.data.model.User
-import com.example.babful.data.repository.ProfileRepository
+import com.example.babful.data.model.User // ⭐️ [신규]
+import com.example.babful.data.repository.ProfileRepository // ⭐️ [신규]
 import com.example.babful.data.repository.StoreRepository
 import com.example.babful.ui.NavigationRoutes
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,32 +15,29 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.min // ⭐️ [신규] (비즈니스 로직)
 import java.util.UUID // ⭐️ [신규] (가상 order_id)
-
-// ⭐️ [수정] 1. UI 상태 (pointsUsed 제거)
 data class StoreUiState(
     val isLoading: Boolean = true,
     val storeInfo: StoreInfo? = null,
     val user: User? = null, // (내 포인트 잔액)
-    // ⭐️ [제거] val pointsUsed: Int = 0,
     val error: String? = null
 )
 
 @HiltViewModel
 class StoreViewModel @Inject constructor(
     private val storeRepository: StoreRepository,
-    private val profileRepository: ProfileRepository,
+    private val profileRepository: ProfileRepository, // ⭐️ [신규] ProfileRepository 주입
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StoreUiState())
     val uiState = _uiState.asStateFlow()
 
-    // ⭐️ 1. '쇼츠' 탭에서 클릭한 storeId (예: "store_1")
     private val storeId: String = checkNotNull(savedStateHandle[NavigationRoutes.ARG_STORE_ID])
 
     init {
-        loadStoreData()
+        loadStoreData() // ⭐️ [수정] (함수 이름 변경)
     }
 
     // 2. '가게 정보' + '내 정보' 동시 로드 (39단계와 동일)
@@ -92,11 +89,19 @@ class StoreViewModel @Inject constructor(
                 }
             }
         }
-    }// ⭐️ [수정] 3. '포인트 사용' -> '결제/적립' 로직
+    }
+    // ⭐️ [수정] 3. '포인트 사용' -> '결제/적립' 로직
     fun completeOrder(amountPaid: Int) {
         _uiState.update { it.copy(isLoading = true) } // (결제 로딩)
+        val currentUser = _uiState.value.user ?: return
 
-        // (가상 결제 PG 연동...)
+        // ⭐️ [핵심] 비즈니스 로직: "최대 1,000P" 또는 "내 잔액" 중 '작은' 값
+        val pointsToUse = min(currentUser.points, 1000)
+
+        if (pointsToUse <= 0) {
+            Log.d("StoreViewModel", "사용할 포인트가 없습니다. (잔액: ${currentUser.points})")
+            return
+        }
 
         // ⭐️ '가상' 주문 ID 생성 (악용 방지 테스트용)
         val orderId = "ORD-${UUID.randomUUID()}"

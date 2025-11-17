@@ -44,6 +44,20 @@ data class PointUseRequest(
     @SerializedName("reason") val reason: String
 )
 
+// ⭐️ [수정] 구글 응답 데이터 모델
+data class DirectionsResponse(
+    val routes: List<Route>
+)
+
+data class Route(
+    @SerializedName("overview_polyline")
+    val overviewPolyline: Polyline
+)
+
+data class Polyline(
+    val points: String
+)
+
 interface ApiService {
     @GET("feed")
     suspend fun getFeedItems(@Query("radius") radius: Int): List<FeedItem>
@@ -82,15 +96,19 @@ interface ApiService {
     @GET("points/history")
     suspend fun getPointHistory(): List<Transaction>
 
-    // ⭐️ [수정] 10. '포인트 사용' (model.PointUseRequest 임포트)
-    @POST("points/use")
-    suspend fun usePoints(@Body request: PointUseRequest)
+    // ⭐️ [수정] 10. '포인트 사용' -> '결제/적립' (POST)
+    @POST("payment/success")
+    suspend fun processPayment(@Body request: PaymentRequest)
 
     // ⭐️ [수정] 11. '내 프로필 정보' (model.User 임포트)
     @GET("profile/me")
     suspend fun getProfileInfo(): User
 
-    // ⭐️ [수정] 10. '포인트 사용' -> '결제/적립' (POST)
-    @POST("payment/success")
-    suspend fun processPayment(@Body request: PaymentRequest)
+    // ⭐️ [신규] 12. 길찾기 (Proxy)
+    // 예: directions?origin=37.5,127.0&dest=37.4,127.1
+    @GET("directions")
+    suspend fun getDirections(
+        @Query("origin") origin: String,
+        @Query("dest") dest: String
+    ): DirectionsResponse
 }
