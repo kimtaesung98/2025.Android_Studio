@@ -22,7 +22,8 @@ import java.util.Locale
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToOwnerMode: () -> Unit // ⭐️ [신규]
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -77,7 +78,17 @@ fun ProfileScreen(
                     }
                 }
             }
-
+            // ⭐️ [신규] 사장님 모드 전환 버튼 (Role이 owner일 때만 표시하거나, 누구나 전환 가능하게 할 수도 있음)
+            // 여기서는 테스트를 위해 누구나 전환 가능하게 하거나, role 체크 후 표시
+            if (uiState.user?.role == "owner") {
+                Button(
+                    onClick = onNavigateToOwnerMode,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                ) {
+                    Text(text = "사장님 모드로 전환")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             // 6. ⭐️ 로그아웃 버튼 (36단계와 동일)

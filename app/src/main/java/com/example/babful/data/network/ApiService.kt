@@ -14,12 +14,16 @@ import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.Path // ⭐️ [신규]
 import java.util.Date // ⭐️ [신규]
+import com.example.babful.data.model.OwnerStore
+import com.example.babful.data.model.CreateStoreRequest
 data class AuthRequest(
     @SerializedName("email") val email: String,
-    @SerializedName("password") val password: String
+    @SerializedName("password") val password: String,
+    @SerializedName("role") val role: String = "customer" // ⭐️ [신규] 기본값 customer
 )
 data class AuthResponse(
-    @SerializedName("token") val token: String
+    @SerializedName("token") val token: String,
+    @SerializedName("role") val role: String // ⭐️ [신규]
 )
 // ⭐️ '좋아요' 요청 Body
 data class LikeRequest(
@@ -111,4 +115,12 @@ interface ApiService {
         @Query("origin") origin: String,
         @Query("dest") dest: String
     ): DirectionsResponse
+
+    // ⭐️ [신규] 점주 - 내 가게 조회
+    @GET("owner/store")
+    suspend fun getMyStore(): OwnerStore
+
+    // ⭐️ [신규] 점주 - 내 가게 등록
+    @POST("owner/store")
+    suspend fun createMyStore(@Body request: CreateStoreRequest)
 }
