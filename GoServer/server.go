@@ -103,7 +103,7 @@ type GoogleDirectionsResponse struct {
 }
 
 // ⭐️ [필수] 42단계에서 발급받은 본인의 API Key를 여기에 넣으세요.
-const GOOGLE_MAPS_API_KEY = "AIzaSyCEQ_Z6wGGFraGL96QHO_65G_KYQZ7yGcY"
+const GOOGLE_MAPS_API_KEY = "Your_Api_key"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /*																																						 */

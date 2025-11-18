@@ -48,7 +48,9 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
-
+// ⭐️ [신규] 만든 UniversalMap 관련 임포트
+import com.example.babful.ui.delivery.map.UniversalMap
+import com.example.babful.ui.delivery.map.UniversalMapState
 @Composable
 fun DeliveryScreen(
     viewModel: DeliveryViewModel = hiltViewModel(),
@@ -106,6 +108,26 @@ fun DeliveryScreen(
 
 
     Column(modifier = Modifier.fillMaxSize()) {
+
+        // ⭐️ [수정] 상단 지도 영역 -> UniversalMap 교체
+        Box(modifier = Modifier.fillMaxWidth().weight(0.4f)) {
+
+            // 지도 상태 생성 (ViewModel 데이터 기반)
+            val mapState = UniversalMapState(
+                // 현재 위치가 있으면 거기로, 없으면 강남역
+                centerLat = uiState.currentLocation?.latitude ?: 37.4979,
+                centerLng = uiState.currentLocation?.longitude ?: 127.0276,
+                zoomLevel = 14f,
+                markers = uiState.deliveryItems
+            )
+
+            // ⭐️ 이것 하나로 구글/네이버/카카오 분기 처리 완료
+            UniversalMap(
+                mapState = mapState,
+                onNavigateToStore = onNavigateToStore
+            )
+        }
+
         Box(modifier = Modifier.fillMaxWidth().weight(0.4f)) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
