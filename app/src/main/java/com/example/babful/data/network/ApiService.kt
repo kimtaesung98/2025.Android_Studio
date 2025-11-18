@@ -18,6 +18,7 @@ import java.util.Date // ⭐️ [신규]
 import com.example.babful.data.model.OwnerStore
 import com.example.babful.data.model.CreateStoreRequest
 import com.example.babful.data.model.Menu
+import com.example.babful.data.model.Order
 
 data class AuthRequest(
     @SerializedName("email") val email: String,
@@ -134,4 +135,8 @@ interface ApiService {
     // ⭐️ [신규] 메뉴 조회 (공용)
     @GET("store/menus")
     suspend fun getStoreMenus(@Query("store_id") storeId: Int): List<Menu>
+
+    // ⭐️ [신규] 점주용 주문 목록 조회
+    @GET("owner/orders")
+    suspend fun getOwnerOrders(): List<Order>
 }

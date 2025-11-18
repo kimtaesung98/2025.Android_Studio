@@ -1,5 +1,6 @@
 package com.example.babful.data.repository
 import com.example.babful.data.model.CreateStoreRequest
+import com.example.babful.data.model.Order
 import com.example.babful.data.model.OwnerStore
 import com.example.babful.data.network.ApiService
 import javax.inject.Inject
@@ -13,5 +14,8 @@ class OwnerRepository @Inject constructor(
 
     suspend fun createStore(name: String, desc: String, lat: Double, lng: Double) {
         apiService.createMyStore(CreateStoreRequest(name, desc, lat, lng))
+    }
+    suspend fun getOrders(): List<Order> {
+        return apiService.getOwnerOrders()
     }
 }

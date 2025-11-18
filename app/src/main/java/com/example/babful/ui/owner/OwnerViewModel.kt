@@ -3,6 +3,7 @@ package com.example.babful.ui.owner
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.babful.data.model.Order
 import com.example.babful.data.model.OwnerStore
 import com.example.babful.data.repository.OwnerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,7 +17,8 @@ data class OwnerUiState(
     val isLoading: Boolean = false,
     val myStore: OwnerStore? = null,
     val isStoreCreated: Boolean = false, // 등록 성공 시 true
-    val error: String? = null
+    val error: String? = null,
+    val orders: List<Order> = emptyList() // ⭐️ [신규]
 )
 
 @HiltViewModel
@@ -55,6 +57,15 @@ class OwnerViewModel @Inject constructor(
                 Log.e("OwnerVM", "가게 등록 실패", e)
                 _uiState.update { it.copy(isLoading = false, error = "등록 실패") }
             }
+        }
+    }
+    // ⭐️ [신규] 주문 목록 로드
+    fun loadOrders() {
+        viewModelScope.launch {
+            try {
+                val orders = repository.getOrders()
+                _uiState.update { it.copy(orders = orders) }
+            } catch (e: Exception) { /* 에러 처리 */ }
         }
     }
 }

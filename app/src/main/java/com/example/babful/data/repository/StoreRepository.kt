@@ -25,10 +25,17 @@ class StoreRepository @Inject constructor(
         apiService.unsubscribeStore(SubscribeRequest(storeId = storeId))
     }
 
-    // ⭐️ [신규] '결제/적립' API 호출
-    suspend fun processPayment(amountPaid: Int, orderId: String) {
-        apiService.processPayment(PaymentRequest(amountPaid = amountPaid, orderId = orderId))
+    // ⭐️ [수정] storeId 인자 추가
+    suspend fun processPayment(storeId: Int, amountPaid: Int, orderId: String) {
+        apiService.processPayment(
+            PaymentRequest(
+                storeId = storeId,
+                amountPaid = amountPaid,
+                orderId = orderId
+            )
+        )
     }
+
     // ⭐️ [신규] 가게 메뉴 목록 가져오기
     suspend fun getMenus(storeId: String): List<Menu> {
         // API는 Int를 받으므로 형변환 (실제 앱에선 String/Int 통일 필요)

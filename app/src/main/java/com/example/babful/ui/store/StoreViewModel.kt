@@ -131,7 +131,7 @@ class StoreViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                storeRepository.processPayment(amountPaid, orderId) // ⭐️ 실제 금액 사용
+                storeRepository.processPayment(storeId.toInt(), amountPaid, orderId)
                 val updatedUser = profileRepository.getProfileInfo()
                 
                 _uiState.update { it.copy(isLoading = false, user = updatedUser) }

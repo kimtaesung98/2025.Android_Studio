@@ -144,6 +144,24 @@ type CreateMenuRequest struct {
     Price   int    `json:"price"`
 }
 
+// ⭐️ [수정] 결제 요청 (가게 ID 추가)
+type PaymentRequest struct {
+	StoreID    int    `json:"store_id"` // ⭐️ [신규] 어느 가게인지
+	AmountPaid int    `json:"amount_paid"`
+	OrderID    string `json:"order_id"`
+}
+
+// ⭐️ [신규] 주문 정보 (점주 조회용)
+type Order struct {
+	ID         int       `json:"id"`
+	StoreID    int       `json:"store_id"`
+	UserID     int       `json:"user_id"`
+	UserEmail  string    `json:"user_email"` // 주문자 이메일
+	Amount     int       `json:"amount"`
+	Status     string    `json:"status"`     // "접수대기", "배달중" 등
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 // ⭐️ [필수] 42단계에서 발급받은 본인의 API Key를 여기에 넣으세요.
 const GOOGLE_MAPS_API_KEY = "Your_Api_key"
 
@@ -246,6 +264,19 @@ func setupDatabase(db *sql.DB) {
         price INTEGER,
         image_url TEXT,
         FOREIGN KEY (store_id) REFERENCES stores (id)
+    )`)
+
+	// ⭐️ [신규] Orders 테이블 (주문 내역)
+    db.Exec(`CREATE TABLE IF NOT EXISTS orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        store_id INTEGER,
+        user_id INTEGER,
+        amount INTEGER,
+        status TEXT DEFAULT '접수대기',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        order_uuid TEXT UNIQUE, -- 결제 order_id와 매핑
+        FOREIGN KEY (store_id) REFERENCES stores (id),
+        FOREIGN KEY (user_id) REFERENCES users (id)
     )`)
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -748,35 +779,33 @@ func pointHistoryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 /*																																						 */
 /*																																						 */
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ⭐️ [복구] paymentSuccessHandler (40.1단계 코드)
+// ⭐️ [수정] 결제/주문 처리 핸들러 (orders 테이블 Insert 추가)
 func paymentSuccessHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Println("안드로이드로부터 /payment/success 요청 수신")
-	claims, err := verifyJWT(r)
-	if err != nil {
-		http.Error(w, "Auth required", 401)
-		return
-	}
-	var req PaymentRequest
-	if json.NewDecoder(r.Body).Decode(&req) != nil {
-		http.Error(w, "Bad Request", 400)
-		return
-	}
+	claims, err := verifyJWT(r); if err != nil { http.Error(w, "Auth required", 401); return }
+	var req PaymentRequest; if json.NewDecoder(r.Body).Decode(&req) != nil { http.Error(w, "Bad Request", 400); return }
 
-	var userID int
-	db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
-
+	var userID int; db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+	
 	pointsEarned := int(float64(req.AmountPaid) * 0.01)
-	tx, _ := db.Begin()
+	
+    tx, _ := db.Begin()
+    
+    // 1. 포인트 적립 (기존 로직)
 	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type, order_id) VALUES (?, ?, ?, ?)", userID, pointsEarned, "적립: 주문", req.OrderID)
-	if err != nil {
-		tx.Rollback()
-		http.Error(w, "Duplicate/Error", 409)
-		return
-	}
-	tx.Exec("UPDATE users SET points = points + ? WHERE id = ?", pointsEarned, userID)
+	if err != nil { tx.Rollback(); http.Error(w, "Duplicate/Error", 409); return }
+	
+    // 2. 잔액 업데이트 (기존 로직)
+    tx.Exec("UPDATE users SET points = points + ? WHERE id = ?", pointsEarned, userID)
+
+    // 3. ⭐️ [신규] 주문(Order) 생성 (점주 확인용)
+    _, err = tx.Exec("INSERT INTO orders (store_id, user_id, amount, order_uuid) VALUES (?, ?, ?, ?)", 
+        req.StoreID, userID, req.AmountPaid, req.OrderID)
+    if err != nil { tx.Rollback(); log.Printf("주문 생성 실패: %v", err); http.Error(w, "Order DB Error", 500); return }
+
 	tx.Commit()
 
-	log.Printf("포인트 적립 성공: UserID %d, %dP 적립", userID, pointsEarned)
+	log.Printf("결제/주문 성공: User %d -> Store %d (%d원)", userID, req.StoreID, req.AmountPaid)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -948,6 +977,42 @@ func getStoreMenusHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
     json.NewEncoder(w).Encode(menus)
 }
 
+// ⭐️ [신규] 19. 점주용 주문 목록 조회 (GET)
+func getOwnerOrdersHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+    claims, err := verifyJWT(r); if err != nil { http.Error(w, "Auth required", 401); return }
+    
+    // 1. 내 가게 ID 찾기
+    var storeID int
+    err = db.QueryRow(`
+        SELECT s.id FROM stores s 
+        JOIN users u ON s.owner_id = u.id 
+        WHERE u.email = ? ORDER BY s.id DESC LIMIT 1`, claims.Email).Scan(&storeID)
+        
+    if err != nil { http.Error(w, "Store not found", 404); return }
+
+    // 2. 해당 가게의 주문 목록 조회 (최신순)
+    rows, err := db.Query(`
+        SELECT o.id, o.store_id, o.user_id, u.email, o.amount, o.status, o.created_at
+        FROM orders o
+        JOIN users u ON o.user_id = u.id
+        WHERE o.store_id = ?
+        ORDER BY o.created_at DESC
+    `, storeID)
+    if err != nil { http.Error(w, "DB Error", 500); return }
+    defer rows.Close()
+
+    var orders []Order
+    for rows.Next() {
+        var o Order
+        rows.Scan(&o.ID, &o.StoreID, &o.UserID, &o.UserEmail, &o.Amount, &o.Status, &o.CreatedAt)
+        orders = append(orders, o)
+    }
+    if orders == nil { orders = []Order{} }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(orders)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -979,14 +1044,10 @@ func main() {
 		storeHandler(w, r, db) // ⭐️ 수정된 핸들러
 	})
 
-	// ⭐️ [복구] 결제 핸들러 라우팅
-	http.HandleFunc("/payment/success", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "POST only", 405)
-			return
-		}
-		paymentSuccessHandler(w, r, db)
-	})
+	// ⭐️ [수정] 결제 핸들러
+    http.HandleFunc("/payment/success", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "POST" { paymentSuccessHandler(w, r, db) }
+    })
 
 	// (기타 라우팅)
 	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) { registerHandler(w, r, db) })
@@ -1024,6 +1085,11 @@ func main() {
     // (고객/점주 공용 조회)
     http.HandleFunc("/store/menus", func(w http.ResponseWriter, r *http.Request) {
         if r.Method == "GET" { getStoreMenusHandler(w, r, db) }
+    })
+
+	// ⭐️ [신규] 점주 주문 확인 핸들러
+    http.HandleFunc("/owner/orders", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "GET" { getOwnerOrdersHandler(w, r, db) }
     })
 	
 	fmt.Println("Go 백엔드 서버(Auth v14 - Owner Role)가 http://localhost:8080 에서 실행 중입니다...")
