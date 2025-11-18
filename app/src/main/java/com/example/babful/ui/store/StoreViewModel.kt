@@ -15,12 +15,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.math.min // ⭐️ [신규] (비즈니스 로직)
 import java.util.UUID // ⭐️ [신규] (가상 order_id)
+import com.example.babful.data.model.Menu // ⭐️ [신규]
+
+// ⭐️ [수정] UI 상태 (메뉴 리스트, 장바구니 추가)
 data class StoreUiState(
     val isLoading: Boolean = true,
     val storeInfo: StoreInfo? = null,
-    val user: User? = null, // (내 포인트 잔액)
+    val user: User? = null,
+    val menus: List<Menu> = emptyList(), // ⭐️ [신규] 메뉴 목록
+    val cartItems: List<Menu> = emptyList(), // ⭐️ [신규] 장바구니 (선택한 메뉴들)
+    val totalPrice: Int = 0, // ⭐️ [신규] 총 주문 금액 (장바구니 합계)
     val error: String? = null
 )
 
@@ -40,20 +45,26 @@ class StoreViewModel @Inject constructor(
         loadStoreData() // ⭐️ [수정] (함수 이름 변경)
     }
 
-    // 2. '가게 정보' + '내 정보' 동시 로드 (39단계와 동일)
+    // ⭐️ [수정] 데이터 로드 (메뉴 포함)
     fun loadStoreData() {
-        Log.d("StoreViewModel", "가게/프로필 정보 로드 시작 (ID: $storeId)")
         _uiState.update { it.copy(isLoading = true) }
-
         viewModelScope.launch {
             try {
                 val storeInfo = storeRepository.getStoreInfo(storeId)
                 val user = profileRepository.getProfileInfo()
-                _uiState.update {
-                    it.copy(isLoading = false, storeInfo = storeInfo, user = user)
+                // ⭐️ [신규] 메뉴 로드
+                val menus = storeRepository.getMenus(storeId)
+
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false, 
+                        storeInfo = storeInfo, 
+                        user = user,
+                        menus = menus // ⭐️
+                    ) 
                 }
             } catch (e: Exception) {
-                Log.e("StoreViewModel", "가게/프로필 정보 로드 실패", e)
+                Log.e("StoreViewModel", "가게/프로필/메뉴 정보 로드 실패", e)
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
         }
@@ -85,44 +96,50 @@ class StoreViewModel @Inject constructor(
                 // 3. (Rollback) 실패 시 UI 원상 복구
                 Log.e("StoreViewModel", "[토글] 백엔드 요청 실패, UI 롤백", e)
                 _uiState.update {
-                    it.copy(storeInfo = currentStore.copy(isSubscribed = isSubscribed)) // ⭐️ 원상 복구
+                    it.copy(storeInfo = currentStore) // ⭐️ 원상 복구
                 }
             }
         }
     }
-    // ⭐️ [수정] 3. '포인트 사용' -> '결제/적립' 로직
-    fun completeOrder(amountPaid: Int) {
-        _uiState.update { it.copy(isLoading = true) } // (결제 로딩)
-        val currentUser = _uiState.value.user ?: return
 
-        // ⭐️ [핵심] 비즈니스 로직: "최대 1,000P" 또는 "내 잔액" 중 '작은' 값
-        val pointsToUse = min(currentUser.points, 1000)
-
-        if (pointsToUse <= 0) {
-            Log.d("StoreViewModel", "사용할 포인트가 없습니다. (잔액: ${currentUser.points})")
-            return
+    // ⭐️ [신규] 장바구니 담기
+    fun addToCart(menu: Menu) {
+        val currentCart = _uiState.value.cartItems + menu
+        val currentTotal = currentCart.sumOf { it.price }
+        
+        _uiState.update { 
+            it.copy(
+                cartItems = currentCart,
+                totalPrice = currentTotal
+            ) 
         }
+    }
+    
+    // ⭐️ [신규] 장바구니 비우기 (초기화)
+    fun clearCart() {
+        _uiState.update { it.copy(cartItems = emptyList(), totalPrice = 0) }
+    }
 
-        // ⭐️ '가상' 주문 ID 생성 (악용 방지 테스트용)
-        val orderId = "ORD-${UUID.randomUUID()}"
-        Log.d("StoreViewModel", "가상 결제 성공. [적립 요청] OrderID: $orderId, Amount: $amountPaid")
+    // ⭐️ [수정] 결제 로직 (고정값 10000원 -> 실제 장바구니 금액)
+    fun completeOrder() { // 인자 제거 (totalPrice 사용)
+        val amountPaid = _uiState.value.totalPrice
+        if (amountPaid <= 0) return // 0원 결제 방지
+
+        _uiState.update { it.copy(isLoading = true) }
+        // ... (UUID 생성 등 기존 로직) ...
+        val orderId = "ORD-${java.util.UUID.randomUUID()}"
 
         viewModelScope.launch {
             try {
-                // 1. (API) Go 서버에 '결제/적립' 요청
-                storeRepository.processPayment(amountPaid, orderId)
-
-                // 2. (API) '내 정보' (포인트 잔액) 새로고침
+                storeRepository.processPayment(amountPaid, orderId) // ⭐️ 실제 금액 사용
                 val updatedUser = profileRepository.getProfileInfo()
-
-                // 3. (UI) UI 상태 갱신
-                _uiState.update {
-                    it.copy(isLoading = false, user = updatedUser) // ⭐️ 잔액 갱신
-                }
-                Log.d("StoreViewModel", "포인트 적립 성공. 새 잔액: ${updatedUser.points}")
+                
+                _uiState.update { it.copy(isLoading = false, user = updatedUser) }
+                clearCart() // ⭐️ 결제 후 장바구니 비우기
+                Log.d("StoreViewModel", "주문 성공! 금액: $amountPaid")
             } catch (e: Exception) {
-                Log.e("StoreViewModel", "포인트 적립/갱신 실패", e)
-                _uiState.update { it.copy(isLoading = false) }
+                 Log.e("StoreViewModel", "주문 처리 실패", e)
+                _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
         }
     }

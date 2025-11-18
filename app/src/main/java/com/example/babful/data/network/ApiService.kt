@@ -1,5 +1,6 @@
 package com.example.babful.data.network
 
+import com.example.babful.data.model.CreateMenuRequest
 import com.example.babful.data.model.DeliveryItem
 import com.example.babful.data.model.FeedItem
 import com.example.babful.data.model.ShortsItem
@@ -16,6 +17,8 @@ import retrofit2.http.Path // ⭐️ [신규]
 import java.util.Date // ⭐️ [신규]
 import com.example.babful.data.model.OwnerStore
 import com.example.babful.data.model.CreateStoreRequest
+import com.example.babful.data.model.Menu
+
 data class AuthRequest(
     @SerializedName("email") val email: String,
     @SerializedName("password") val password: String,
@@ -123,4 +126,12 @@ interface ApiService {
     // ⭐️ [신규] 점주 - 내 가게 등록
     @POST("owner/store")
     suspend fun createMyStore(@Body request: CreateStoreRequest)
+
+    // ⭐️ [신규] 메뉴 등록 (점주)
+    @POST("owner/menu")
+    suspend fun createMenu(@Body request: CreateMenuRequest)
+
+    // ⭐️ [신규] 메뉴 조회 (공용)
+    @GET("store/menus")
+    suspend fun getStoreMenus(@Query("store_id") storeId: Int): List<Menu>
 }

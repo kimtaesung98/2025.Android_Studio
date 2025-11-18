@@ -128,6 +128,22 @@ type CreateStoreRequest struct {
     Lng         float64 `json:"lng"`
 }
 
+// ⭐️ [신규] Menu 구조체
+type Menu struct {
+    ID       int    `json:"id"`
+    StoreID  int    `json:"store_id"`
+    Name     string `json:"name"`
+    Price    int    `json:"price"`
+    ImageUrl string `json:"image_url"`
+}
+
+// ⭐️ [신규] 메뉴 생성 요청
+type CreateMenuRequest struct {
+    StoreID int    `json:"store_id"`
+    Name    string `json:"name"`
+    Price   int    `json:"price"`
+}
+
 // ⭐️ [필수] 42단계에서 발급받은 본인의 API Key를 여기에 넣으세요.
 const GOOGLE_MAPS_API_KEY = "Your_Api_key"
 
@@ -220,6 +236,16 @@ func setupDatabase(db *sql.DB) {
         lng REAL,
         image_url TEXT,
         FOREIGN KEY (owner_id) REFERENCES users (id)
+    )`)
+
+	// ⭐️ [신규] Menus 테이블
+    db.Exec(`CREATE TABLE IF NOT EXISTS menus (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        store_id INTEGER,
+        name TEXT,
+        price INTEGER,
+        image_url TEXT,
+        FOREIGN KEY (store_id) REFERENCES stores (id)
     )`)
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -882,6 +908,46 @@ func getMyStoreHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
     json.NewEncoder(w).Encode(store)
 }
 
+// ⭐️ [신규] 17. 메뉴 등록 핸들러 (점주용 POST)
+func createMenuHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+    claims, err := verifyJWT(r); if err != nil { http.Error(w, "Auth required", 401); return }
+    if claims.Role != "owner" { http.Error(w, "Forbidden", 403); return }
+
+    var req CreateMenuRequest
+    if json.NewDecoder(r.Body).Decode(&req) != nil { http.Error(w, "Bad Request", 400); return }
+
+    // (본인 가게인지 확인하는 로직은 생략 - 간단하게 구현)
+    _, err = db.Exec("INSERT INTO menus (store_id, name, price, image_url) VALUES (?, ?, ?, ?)",
+        req.StoreID, req.Name, req.Price, "https://picsum.photos/150") // 이미지 더미
+    
+    if err != nil { http.Error(w, "DB Error", 500); return }
+    w.WriteHeader(http.StatusCreated)
+}
+
+// ⭐️ [신규] 18. 가게 메뉴 조회 핸들러 (공용 GET)
+func getStoreMenusHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+    // URL: /store/{id}/menus
+    // Path 파싱이 복잡하므로, Query Param 방식 사용: /store/menus?store_id=1
+    storeID := r.URL.Query().Get("store_id")
+    if storeID == "" { http.Error(w, "Missing store_id", 400); return }
+
+    rows, err := db.Query("SELECT id, store_id, name, price, image_url FROM menus WHERE store_id = ?", storeID)
+    if err != nil { http.Error(w, "DB Error", 500); return }
+    defer rows.Close()
+
+    var menus []Menu
+    for rows.Next() {
+        var m Menu
+        rows.Scan(&m.ID, &m.StoreID, &m.Name, &m.Price, &m.ImageUrl)
+        menus = append(menus, m)
+    }
+    // 빈 배열 처리
+    if menus == nil { menus = []Menu{} }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(menus)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -949,6 +1015,15 @@ func main() {
         } else {
             http.Error(w, "Method not allowed", 405)
         }
+    })
+	// ⭐️ [신규] 메뉴 관련 라우팅
+    http.HandleFunc("/owner/menu", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "POST" { createMenuHandler(w, r, db) }
+    })
+    
+    // (고객/점주 공용 조회)
+    http.HandleFunc("/store/menus", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "GET" { getStoreMenusHandler(w, r, db) }
     })
 	
 	fmt.Println("Go 백엔드 서버(Auth v14 - Owner Role)가 http://localhost:8080 에서 실행 중입니다...")
