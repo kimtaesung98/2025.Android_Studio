@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person // ⭐️ [신규]
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ShoppingCart
+import com.example.babful.ui.owner.OwnerHomeScreen
 import com.example.babful.ui.profile.ProfileScreen // ⭐️ [신규]
 
 @AndroidEntryPoint
@@ -156,21 +157,32 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 }
             )
         }
-        // ⭐️ [신규] 5. Profile Graph
+        // [수정] Profile Graph
         composable(NavigationRoutes.PROFILE) {
             ProfileScreen(
-                onNavigateToLogin = {
-                    // ⭐️ [핵심 수정] '로그아웃' 시, LOGIN으로 이동하고
-                    //          '메인 탭'(FEED)까지의 모든 스택을 제거
+                onNavigateToLogin = { 
                     navController.navigate(NavigationRoutes.LOGIN) {
                         popUpTo(NavigationRoutes.FEED) {
-                            inclusive = true // ⭐️ FEED 화면 포함해서 스택에서 제거
+                            inclusive = true
                         }
-                        // (LOGIN이 스택의 유일한 화면이 됨)
                     }
+                 },
+                onNavigateToOwnerMode = {
+                    // ⭐️ 점주 모드로 이동 (스택 정리 없이 이동하여 뒤로가기로 복귀 가능하게 함)
+                    navController.navigate(NavigationRoutes.OWNER_HOME)
                 }
             )
         }
+
+        // ⭐️ [신규] Owner Graph
+        composable(NavigationRoutes.OWNER_HOME) {
+            OwnerHomeScreen(
+                onNavigateToCustomerMode = {
+                    navController.popBackStack() // 뒤로 가기 (프로필로 복귀)
+                }
+            )
+        }
+        
         // --- ⭐️ [신규] Auth Graph ---
         composable(NavigationRoutes.LOGIN) {
             LoginScreen(

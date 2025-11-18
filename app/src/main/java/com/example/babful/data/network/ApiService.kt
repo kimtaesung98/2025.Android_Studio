@@ -1,5 +1,6 @@
 package com.example.babful.data.network
 
+import com.example.babful.data.model.CreateMenuRequest
 import com.example.babful.data.model.DeliveryItem
 import com.example.babful.data.model.FeedItem
 import com.example.babful.data.model.ShortsItem
@@ -14,12 +15,19 @@ import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.Path // ⭐️ [신규]
 import java.util.Date // ⭐️ [신규]
+import com.example.babful.data.model.OwnerStore
+import com.example.babful.data.model.CreateStoreRequest
+import com.example.babful.data.model.Menu
+import com.example.babful.data.model.Order
+
 data class AuthRequest(
     @SerializedName("email") val email: String,
-    @SerializedName("password") val password: String
+    @SerializedName("password") val password: String,
+    @SerializedName("role") val role: String = "customer" // ⭐️ [신규] 기본값 customer
 )
 data class AuthResponse(
-    @SerializedName("token") val token: String
+    @SerializedName("token") val token: String,
+    @SerializedName("role") val role: String // ⭐️ [신규]
 )
 // ⭐️ '좋아요' 요청 Body
 data class LikeRequest(
@@ -111,4 +119,24 @@ interface ApiService {
         @Query("origin") origin: String,
         @Query("dest") dest: String
     ): DirectionsResponse
+
+    // ⭐️ [신규] 점주 - 내 가게 조회
+    @GET("owner/store")
+    suspend fun getMyStore(): OwnerStore
+
+    // ⭐️ [신규] 점주 - 내 가게 등록
+    @POST("owner/store")
+    suspend fun createMyStore(@Body request: CreateStoreRequest)
+
+    // ⭐️ [신규] 메뉴 등록 (점주)
+    @POST("owner/menu")
+    suspend fun createMenu(@Body request: CreateMenuRequest)
+
+    // ⭐️ [신규] 메뉴 조회 (공용)
+    @GET("store/menus")
+    suspend fun getStoreMenus(@Query("store_id") storeId: Int): List<Menu>
+
+    // ⭐️ [신규] 점주용 주문 목록 조회
+    @GET("owner/orders")
+    suspend fun getOwnerOrders(): List<Order>
 }
