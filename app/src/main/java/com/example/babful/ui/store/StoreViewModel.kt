@@ -17,8 +17,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.util.UUID // ⭐️ [신규] (가상 order_id)
 import com.example.babful.data.model.Menu // ⭐️ [신규]
+import kotlin.math.min // ⭐️ [신규] (비즈니스 로직)
 
-// ⭐️ [수정] UI 상태 (메뉴 리스트, 장바구니 추가)
+// ⭐️ [수정] UI 상태 (메뉴 리스트, 장바구니, 사용 포인트 추가)
 data class StoreUiState(
     val isLoading: Boolean = true,
     val storeInfo: StoreInfo? = null,
@@ -26,6 +27,7 @@ data class StoreUiState(
     val menus: List<Menu> = emptyList(), // ⭐️ [신규] 메뉴 목록
     val cartItems: List<Menu> = emptyList(), // ⭐️ [신규] 장바구니 (선택한 메뉴들)
     val totalPrice: Int = 0, // ⭐️ [신규] 총 주문 금액 (장바구니 합계)
+    val pointsUsed: Int = 0, // ⭐️ [추가] 이 주문에 사용한 포인트
     val error: String? = null
 )
 
@@ -66,6 +68,54 @@ class StoreViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("StoreViewModel", "가게/프로필/메뉴 정보 로드 실패", e)
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    // ⭐️ [수정] '포인트 사용' (비즈니스 로직 적용)
+    fun usePointsForOrder() {
+        val state = _uiState.value
+        val currentUser = state.user ?: return
+        val remainingPrice = state.totalPrice - state.pointsUsed
+
+        // ⭐️ 사용 가능 포인트는 남은 결제 금액을 초과할 수 없음
+        if (remainingPrice <= 0) {
+            Log.d("StoreViewModel", "이미 전액을 포인트로 사용했거나 장바구니가 비어있습니다.")
+            return
+        }
+
+        // ⭐️ [핵심] 비즈니스 로직: "최대 1,000P", "내 잔액", "남은 결제금액" 중 '가장 작은' 값
+        val pointsToUse = min(min(currentUser.points, 1000), remainingPrice)
+
+
+        if (pointsToUse <= 0) {
+            Log.d("StoreViewModel", "사용할 포인트가 없습니다. (잔액: ${currentUser.points})")
+            return
+        }
+
+        Log.d("StoreViewModel", "[포인트 사용] $pointsToUse P 사용 요청 (잔액: ${currentUser.points})")
+        _uiState.update { it.copy(isLoading = true) } // (임시 로딩)
+
+        viewModelScope.launch {
+            try {
+                // 1. (API) Go 서버에 '포인트 사용' 요청
+                profileRepository.usePoints(pointsToUse, "주문 할인 (Store: $storeId)")
+
+                // 2. (API) '내 정보' (포인트 잔액) 새로고침
+                val updatedUser = profileRepository.getProfileInfo()
+
+                // 3. (UI) UI 상태 갱신
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        user = updatedUser, // ⭐️ 잔액 갱신
+                        pointsUsed = it.pointsUsed + pointsToUse // ⭐️ '이 주문에' 사용한 포인트 누적
+                    )
+                }
+                Log.d("StoreViewModel", "포인트 사용 성공. 새 잔액: ${updatedUser.points}")
+            } catch (e: Exception) {
+                Log.e("StoreViewModel", "포인트 사용 실패", e)
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -115,27 +165,42 @@ class StoreViewModel @Inject constructor(
         }
     }
     
-    // ⭐️ [신규] 장바구니 비우기 (초기화)
+    // ⭐️ [수정] 장바구니 비우기 (포인트 사용내역 포함)
     fun clearCart() {
-        _uiState.update { it.copy(cartItems = emptyList(), totalPrice = 0) }
+        _uiState.update { it.copy(cartItems = emptyList(), totalPrice = 0, pointsUsed = 0) }
     }
 
-    // ⭐️ [수정] 결제 로직 (고정값 10000원 -> 실제 장바구니 금액)
-    fun completeOrder() { // 인자 제거 (totalPrice 사용)
-        val amountPaid = _uiState.value.totalPrice
-        if (amountPaid <= 0) return // 0원 결제 방지
+    // ⭐️ [수정] 결제 로직 (실제 결제 금액 계산)
+    fun completeOrder() { 
+        val state = _uiState.value
+        val amountPaid = state.totalPrice - state.pointsUsed
+
+        // 장바구니가 비어있으면 결제 방지
+        if (state.totalPrice <= 0) {
+            Log.d("StoreViewModel", "장바구니가 비어있어 결제를 진행할 수 없습니다.")
+            return
+        }
+        // 포인트 사용액이 주문 금액보다 큰 경우 방지 (usePointsForOrder에서 처리되지만, 최종 방어)
+        if (amountPaid < 0) {
+            Log.e("StoreViewModel", "결제 금액이 0보다 작습니다. 로직 확인 필요.")
+            return
+        }
 
         _uiState.update { it.copy(isLoading = true) }
-        // ... (UUID 생성 등 기존 로직) ...
         val orderId = "ORD-${java.util.UUID.randomUUID()}"
 
         viewModelScope.launch {
             try {
+                // ⭐️ [수정] 포인트가 차감된 최종 금액으로 결제
                 storeRepository.processPayment(storeId.toInt(), amountPaid, orderId)
                 val updatedUser = profileRepository.getProfileInfo()
-                
+
+                // ⭐️ [수정] storeId 전달 (String -> Int 변환 주의)
+                // (실제로는 storeId가 숫자로 관리되므로 toInt() 사용)
+                storeRepository.processPayment(storeId.toInt(), amountPaid, orderId)
+
                 _uiState.update { it.copy(isLoading = false, user = updatedUser) }
-                clearCart() // ⭐️ 결제 후 장바구니 비우기
+                clearCart() // ⭐️ 결제 후 장바구니 및 사용 포인트 비우기
                 Log.d("StoreViewModel", "주문 성공! 금액: $amountPaid")
             } catch (e: Exception) {
                  Log.e("StoreViewModel", "주문 처리 실패", e)

@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Person // ⭐️ [신규]
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ShoppingCart
 import com.example.babful.ui.owner.OwnerHomeScreen
+import com.example.babful.ui.owner.OwnerMenuScreen
 import com.example.babful.ui.profile.ProfileScreen // ⭐️ [신규]
 
 @AndroidEntryPoint
@@ -174,15 +175,25 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
             )
         }
 
-        // ⭐️ [신규] Owner Graph
+        // Owner Home 수정: '메뉴 관리' 클릭 시 이동
         composable(NavigationRoutes.OWNER_HOME) {
             OwnerHomeScreen(
-                onNavigateToCustomerMode = {
-                    navController.popBackStack() // 뒤로 가기 (프로필로 복귀)
+                onNavigateToCustomerMode = { navController.popBackStack() },
+                // ⭐️ [신규] 메뉴 관리 이동 람다 전달 (OwnerHomeScreen 수정 필요)
+                onNavigateToMenu = { storeId ->
+                    navController.navigate(NavigationRoutes.ownerMenuRoute(storeId))
                 }
             )
         }
-        
+        // ⭐️ [신규] Owner Menu Graph
+        composable(
+            route = NavigationRoutes.OWNER_MENU,
+            // (arguments 설정 생략 - 간단히 문자열 파싱)
+        ) { backStackEntry ->
+            val storeIdStr = backStackEntry.arguments?.getString("storeId") ?: "0"
+            OwnerMenuScreen(storeId = storeIdStr.toInt())
+        }
+
         // --- ⭐️ [신규] Auth Graph ---
         composable(NavigationRoutes.LOGIN) {
             LoginScreen(

@@ -4,15 +4,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io" // ⭐️ [신규] HTTP 응답 읽기용
+	"io"
 	"log"
 	"net/http"
+	"os" // ⭐️ [신규] 환경변수 읽기용
 	"strconv"
-	"strings" // ⭐️ [신규] "Bearer " 접두사 제거
+	"strings"
 	"time"
 
-	_ "github.com/glebarez/go-sqlite" // (22단계 Plan B)
-
+	_ "github.com/glebarez/go-sqlite"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -47,24 +47,27 @@ type ShortsItem struct {
 	StoreID   string  `json:"store_id"`
 	VideoURL  *string `json:"video_url"`
 }
+
 // ⭐️ [수정] User 구조체 (Role 추가)
 type User struct {
-    ID             int    `json:"id"`
-    Email          string `json:"email"`
-    HashedPassword string `json:"-"`
-    Points         int    `json:"points"`
-    Role           string `json:"role"` // ⭐️ "customer" or "owner"
+	ID             int    `json:"id"`
+	Email          string `json:"email"`
+	HashedPassword string `json:"-"`
+	Points         int    `json:"points"`
+	Role           string `json:"role"` // ⭐️ "customer" or "owner"
 }
+
 // ⭐️ [수정] AuthRequest (Role 추가 - 회원가입용)
 type AuthRequest struct {
-    Email    string `json:"email"`
-    Password string `json:"password"`
-    Role     string `json:"role"` // ⭐️ 회원가입 시 선택 (기본값: customer)
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"` // ⭐️ 회원가입 시 선택 (기본값: customer)
 }
+
 // ⭐️ [수정] AuthResponse (Role 추가 - 로그인 시 클라이언트가 알 수 있게)
 type AuthResponse struct {
-    Token string `json:"token"`
-    Role  string `json:"role"` // ⭐️
+	Token string `json:"token"`
+	Role  string `json:"role"` // ⭐️
 }
 type LikeRequest struct {
 	FeedID string `json:"feed_id"`
@@ -86,15 +89,12 @@ type Transaction struct {
 	Timestamp time.Time `json:"timestamp"`
 	OrderID   *string   `json:"order_id"` // 40.1단계 (악용 방지)
 }
-type PaymentRequest struct {
-	AmountPaid int    `json:"amount_paid"`
-	OrderID    string `json:"order_id"`
-}
 
 var jwtKey = []byte("my_secret_key_12345")
 
 type Claims struct {
 	Email string `json:"email"`
+	Role  string `json:"role"` // ⭐️ [신규] Role 필드 추가
 	jwt.RegisteredClaims
 }
 
@@ -111,37 +111,37 @@ type GoogleDirectionsResponse struct {
 // ⭐️ [신규] Store 구조체 (DB 저장용)
 // 기존 StoreInfo(조회용)와 달리, OwnerID와 Lat/Lng 등 관리 정보 포함
 type Store struct {
-    ID          int     `json:"id"`
-    OwnerID     int     `json:"owner_id"`
-    Name        string  `json:"name"`
-    Description string  `json:"description"`
-    Lat         float64 `json:"lat"`
-    Lng         float64 `json:"lng"`
-    ImageUrl    string  `json:"image_url"`
+	ID          int     `json:"id"`
+	OwnerID     int     `json:"owner_id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Lat         float64 `json:"lat"`
+	Lng         float64 `json:"lng"`
+	ImageUrl    string  `json:"image_url"`
 }
 
 // ⭐️ [신규] 가게 등록 요청
 type CreateStoreRequest struct {
-    Name        string  `json:"name"`
-    Description string  `json:"description"`
-    Lat         float64 `json:"lat"`
-    Lng         float64 `json:"lng"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Lat         float64 `json:"lat"`
+	Lng         float64 `json:"lng"`
 }
 
 // ⭐️ [신규] Menu 구조체
 type Menu struct {
-    ID       int    `json:"id"`
-    StoreID  int    `json:"store_id"`
-    Name     string `json:"name"`
-    Price    int    `json:"price"`
-    ImageUrl string `json:"image_url"`
+	ID       int    `json:"id"`
+	StoreID  int    `json:"store_id"`
+	Name     string `json:"name"`
+	Price    int    `json:"price"`
+	ImageUrl string `json:"image_url"`
 }
 
 // ⭐️ [신규] 메뉴 생성 요청
 type CreateMenuRequest struct {
-    StoreID int    `json:"store_id"`
-    Name    string `json:"name"`
-    Price   int    `json:"price"`
+	StoreID int    `json:"store_id"`
+	Name    string `json:"name"`
+	Price   int    `json:"price"`
 }
 
 // ⭐️ [수정] 결제 요청 (가게 ID 추가)
@@ -153,13 +153,13 @@ type PaymentRequest struct {
 
 // ⭐️ [신규] 주문 정보 (점주 조회용)
 type Order struct {
-	ID         int       `json:"id"`
-	StoreID    int       `json:"store_id"`
-	UserID     int       `json:"user_id"`
-	UserEmail  string    `json:"user_email"` // 주문자 이메일
-	Amount     int       `json:"amount"`
-	Status     string    `json:"status"`     // "접수대기", "배달중" 등
-	CreatedAt  time.Time `json:"created_at"`
+	ID        int       `json:"id"`
+	StoreID   int       `json:"store_id"`
+	UserID    int       `json:"user_id"`
+	UserEmail string    `json:"user_email"` // 주문자 이메일
+	Amount    int       `json:"amount"`
+	Status    string    `json:"status"` // "접수대기", "배달중" 등
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ⭐️ [필수] 42단계에서 발급받은 본인의 API Key를 여기에 넣으세요.
@@ -204,7 +204,7 @@ func setupDatabase(db *sql.DB) {
     )`)
 
 	// ⭐️ [수정] Users 테이블 (role 컬럼 추가)
-    db.Exec(`CREATE TABLE IF NOT EXISTS users (
+	db.Exec(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE,
         hashed_password TEXT,
@@ -244,8 +244,8 @@ func setupDatabase(db *sql.DB) {
     )`)
 
 	// ⭐️ [신규] Stores 테이블 (점주가 관리하는 가게)
-    // deliveries 테이블은 '배달 상태' 중심이고, stores는 '가게 정보' 중심 (나중에 통합 가능)
-    db.Exec(`CREATE TABLE IF NOT EXISTS stores (
+	// deliveries 테이블은 '배달 상태' 중심이고, stores는 '가게 정보' 중심 (나중에 통합 가능)
+	db.Exec(`CREATE TABLE IF NOT EXISTS stores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         owner_id INTEGER,
         name TEXT,
@@ -257,7 +257,7 @@ func setupDatabase(db *sql.DB) {
     )`)
 
 	// ⭐️ [신규] Menus 테이블
-    db.Exec(`CREATE TABLE IF NOT EXISTS menus (
+	db.Exec(`CREATE TABLE IF NOT EXISTS menus (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         store_id INTEGER,
         name TEXT,
@@ -267,7 +267,7 @@ func setupDatabase(db *sql.DB) {
     )`)
 
 	// ⭐️ [신규] Orders 테이블 (주문 내역)
-    db.Exec(`CREATE TABLE IF NOT EXISTS orders (
+	db.Exec(`CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         store_id INTEGER,
         user_id INTEGER,
@@ -490,18 +490,26 @@ func shortsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [수정] 회원가입 핸들러
 func registerHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    var req AuthRequest
-    if json.NewDecoder(r.Body).Decode(&req) != nil { http.Error(w, "Bad Request", 400); return }
-    
-    hashedPass, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-    
-    // Role 기본값 처리
-    if req.Role == "" { req.Role = "customer" }
+	var req AuthRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "Bad Request", 400)
+		return
+	}
 
-    _, err := db.Exec("INSERT INTO users (email, hashed_password, role) VALUES (?, ?, ?)", req.Email, string(hashedPass), req.Role)
-    if err != nil { http.Error(w, "Email exists", 409); return }
-    
-    w.WriteHeader(http.StatusCreated)
+	hashedPass, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+
+	// Role 기본값 처리
+	if req.Role == "" {
+		req.Role = "customer"
+	}
+
+	_, err := db.Exec("INSERT INTO users (email, hashed_password, role) VALUES (?, ?, ?)", req.Email, string(hashedPass), req.Role)
+	if err != nil {
+		http.Error(w, "Email exists", 409)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -511,23 +519,27 @@ func registerHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [수정] 로그인 핸들러
 func loginHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    var req AuthRequest
-    if json.NewDecoder(r.Body).Decode(&req) != nil { http.Error(w, "Bad Request", 400); return }
+	var req AuthRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "Bad Request", 400)
+		return
+	}
 
-    var user User
-    err := db.QueryRow("SELECT id, email, hashed_password, role FROM users WHERE email = ?", req.Email).Scan(&user.ID, &user.Email, &user.HashedPassword, &user.Role)
-    if err != nil || bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)) != nil {
-        http.Error(w, "Unauthorized", 401); return
-    }
+	var user User
+	err := db.QueryRow("SELECT id, email, hashed_password, role FROM users WHERE email = ?", req.Email).Scan(&user.ID, &user.Email, &user.HashedPassword, &user.Role)
+	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)) != nil {
+		http.Error(w, "Unauthorized", 401)
+		return
+	}
 
-    // JWT 발급 (Role 포함)
-    expirationTime := time.Now().Add(24 * time.Hour)
-    claims := &Claims{ Email: user.Email, Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ ExpiresAt: jwt.NewNumericDate(expirationTime) } }
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    tokenString, _ := token.SignedString(jwtKey)
+	// JWT 발급 (Role 포함)
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &Claims{Email: user.Email, Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(expirationTime)}}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, _ := token.SignedString(jwtKey)
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(AuthResponse{Token: tokenString, Role: user.Role}) // Role 반환
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(AuthResponse{Token: tokenString, Role: user.Role}) // Role 반환
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -782,26 +794,44 @@ func pointHistoryHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 // ⭐️ [수정] 결제/주문 처리 핸들러 (orders 테이블 Insert 추가)
 func paymentSuccessHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	log.Println("안드로이드로부터 /payment/success 요청 수신")
-	claims, err := verifyJWT(r); if err != nil { http.Error(w, "Auth required", 401); return }
-	var req PaymentRequest; if json.NewDecoder(r.Body).Decode(&req) != nil { http.Error(w, "Bad Request", 400); return }
+	claims, err := verifyJWT(r)
+	if err != nil {
+		http.Error(w, "Auth required", 401)
+		return
+	}
+	var req PaymentRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "Bad Request", 400)
+		return
+	}
 
-	var userID int; db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
-	
+	var userID int
+	db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+
 	pointsEarned := int(float64(req.AmountPaid) * 0.01)
-	
-    tx, _ := db.Begin()
-    
-    // 1. 포인트 적립 (기존 로직)
-	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type, order_id) VALUES (?, ?, ?, ?)", userID, pointsEarned, "적립: 주문", req.OrderID)
-	if err != nil { tx.Rollback(); http.Error(w, "Duplicate/Error", 409); return }
-	
-    // 2. 잔액 업데이트 (기존 로직)
-    tx.Exec("UPDATE users SET points = points + ? WHERE id = ?", pointsEarned, userID)
 
-    // 3. ⭐️ [신규] 주문(Order) 생성 (점주 확인용)
-    _, err = tx.Exec("INSERT INTO orders (store_id, user_id, amount, order_uuid) VALUES (?, ?, ?, ?)", 
-        req.StoreID, userID, req.AmountPaid, req.OrderID)
-    if err != nil { tx.Rollback(); log.Printf("주문 생성 실패: %v", err); http.Error(w, "Order DB Error", 500); return }
+	tx, _ := db.Begin()
+
+	// 1. 포인트 적립 (기존 로직)
+	_, err = tx.Exec("INSERT INTO transactions (user_id, amount, type, order_id) VALUES (?, ?, ?, ?)", userID, pointsEarned, "적립: 주문", req.OrderID)
+	if err != nil {
+		tx.Rollback()
+		http.Error(w, "Duplicate/Error", 409)
+		return
+	}
+
+	// 2. 잔액 업데이트 (기존 로직)
+	tx.Exec("UPDATE users SET points = points + ? WHERE id = ?", pointsEarned, userID)
+
+	// 3. ⭐️ [신규] 주문(Order) 생성 (점주 확인용)
+	_, err = tx.Exec("INSERT INTO orders (store_id, user_id, amount, order_uuid) VALUES (?, ?, ?, ?)",
+		req.StoreID, userID, req.AmountPaid, req.OrderID)
+	if err != nil {
+		tx.Rollback()
+		log.Printf("주문 생성 실패: %v", err)
+		http.Error(w, "Order DB Error", 500)
+		return
+	}
 
 	tx.Commit()
 
@@ -816,14 +846,22 @@ func paymentSuccessHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [수정] 내 프로필 핸들러
 func profileHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    claims, err := verifyJWT(r); if err != nil { http.Error(w, "Auth required", 401); return }
-    
-    var user User
-    // role 컬럼 추가 조회
-    err = db.QueryRow("SELECT id, email, points, role FROM users WHERE email = ?", claims.Email).Scan(&user.ID, &user.Email, &user.Points, &user.Role)
-    if err != nil { http.Error(w, "User not found", 404); return }
-    
-    w.Header().Set("Content-Type", "application/json"); json.NewEncoder(w).Encode(user)
+	claims, err := verifyJWT(r)
+	if err != nil {
+		http.Error(w, "Auth required", 401)
+		return
+	}
+
+	var user User
+	// role 컬럼 추가 조회
+	err = db.QueryRow("SELECT id, email, points, role FROM users WHERE email = ?", claims.Email).Scan(&user.ID, &user.Email, &user.Points, &user.Role)
+	if err != nil {
+		http.Error(w, "User not found", 404)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -831,23 +869,30 @@ func profileHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 /*																																						 */
 /*																																						 */
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ⭐️ [신규] 14. 길찾기 핸들러 (Proxy)
+// ⭐️ [수정] 14. 길찾기 핸들러 (Real Proxy + Env Key)
 func directionsHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. 파라미터 파싱 (origin=위도,경도 & dest=위도,경도)
 	origin := r.URL.Query().Get("origin")
 	dest := r.URL.Query().Get("dest")
 
-	log.Printf("길찾기 요청: %s -> %s", origin, dest)
+	// 1. 환경변수에서 API Key 가져오기
+	apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+	if apiKey == "" {
+		log.Println("오류: GOOGLE_MAPS_API_KEY 환경변수가 설정되지 않았습니다.")
+		http.Error(w, "Server Misconfiguration", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("길찾기 요청(Real): %s -> %s", origin, dest)
 
 	if origin == "" || dest == "" {
 		http.Error(w, "Missing origin or dest", http.StatusBadRequest)
 		return
 	}
 
-	// 2. Google Directions API 호출 (Go 서버가 대신 호출)
+	// 2. 실제 Google Directions API 호출
 	googleURL := fmt.Sprintf(
 		"https://maps.googleapis.com/maps/api/directions/json?origin=%s&destination=%s&key=%s",
-		origin, dest, GOOGLE_MAPS_API_KEY,
+		origin, dest, apiKey,
 	)
 
 	resp, err := http.Get(googleURL)
@@ -858,15 +903,14 @@ func directionsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// 3. Google 응답 읽기
+	// 3. Google 응답 읽기 및 전달
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		http.Error(w, "Failed to read response", http.StatusInternalServerError)
 		return
 	}
 
-	// 4. 안드로이드에게 그대로 전달 (또는 파싱해서 points만 줄 수도 있음)
-	// 여기서는 Google의 JSON 전체를 그대로 토스(Pass-through)합니다.
+	// (Google 응답을 그대로 안드로이드에 전달)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
 }
@@ -878,36 +922,42 @@ func directionsHandler(w http.ResponseWriter, r *http.Request) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [신규] 15. 점주용: 내 가게 등록 (POST)
 func createMyStoreHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    log.Println("점주로부터 /owner/store (가게 등록) 요청 수신")
-    claims, err := verifyJWT(r)
-    if err != nil { http.Error(w, "Auth required", 401); return }
-    
-    // 1. 권한 체크 (Role이 owner인지)
-    if claims.Role != "owner" {
-        http.Error(w, "Forbidden: Only owners can create stores", 403)
-        return
-    }
+	log.Println("점주로부터 /owner/store (가게 등록) 요청 수신")
+	claims, err := verifyJWT(r)
+	if err != nil {
+		http.Error(w, "Auth required", 401)
+		return
+	}
 
-    var req CreateStoreRequest
-    if json.NewDecoder(r.Body).Decode(&req) != nil { http.Error(w, "Bad Request", 400); return }
+	// 1. 권한 체크 (Role이 owner인지)
+	if claims.Role != "owner" {
+		http.Error(w, "Forbidden: Only owners can create stores", 403)
+		return
+	}
 
-    var userID int
-    db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+	var req CreateStoreRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "Bad Request", 400)
+		return
+	}
 
-    // 2. 가게 생성 (이미 있는지 체크 로직은 생략 - 1인 다점포 허용 가정)
-    // (이미지 URL은 임시로 고정)
-    res, err := db.Exec("INSERT INTO stores (owner_id, name, description, lat, lng, image_url) VALUES (?, ?, ?, ?, ?, ?)",
-        userID, req.Name, req.Description, req.Lat, req.Lng, "https://picsum.photos/200")
-    
-    if err != nil {
-        log.Printf("가게 생성 실패: %v", err)
-        http.Error(w, "DB Error", 500)
-        return
-    }
-    
-    id, _ := res.LastInsertId()
-    log.Printf("가게 등록 성공: StoreID %d (OwnerID %d)", id, userID)
-    w.WriteHeader(http.StatusCreated)
+	var userID int
+	db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+
+	// 2. 가게 생성 (이미 있는지 체크 로직은 생략 - 1인 다점포 허용 가정)
+	// (이미지 URL은 임시로 고정)
+	res, err := db.Exec("INSERT INTO stores (owner_id, name, description, lat, lng, image_url) VALUES (?, ?, ?, ?, ?, ?)",
+		userID, req.Name, req.Description, req.Lat, req.Lng, "https://picsum.photos/200")
+
+	if err != nil {
+		log.Printf("가게 생성 실패: %v", err)
+		http.Error(w, "DB Error", 500)
+		return
+	}
+
+	id, _ := res.LastInsertId()
+	log.Printf("가게 등록 성공: StoreID %d (OwnerID %d)", id, userID)
+	w.WriteHeader(http.StatusCreated)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -917,100 +967,136 @@ func createMyStoreHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ⭐️ [신규] 16. 점주용: 내 가게 조회 (GET)
 func getMyStoreHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    claims, err := verifyJWT(r)
-    if err != nil { http.Error(w, "Auth required", 401); return }
+	claims, err := verifyJWT(r)
+	if err != nil {
+		http.Error(w, "Auth required", 401)
+		return
+	}
 
-    var userID int
-    db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
+	var userID int
+	db.QueryRow("SELECT id FROM users WHERE email = ?", claims.Email).Scan(&userID)
 
-    // 가장 최근에 등록한 가게 1개만 가져오기 (단순화)
-    var store Store
-    err = db.QueryRow("SELECT id, owner_id, name, description, lat, lng, image_url FROM stores WHERE owner_id = ? ORDER BY id DESC LIMIT 1", userID).Scan(
-        &store.ID, &store.OwnerID, &store.Name, &store.Description, &store.Lat, &store.Lng, &store.ImageUrl)
+	// 가장 최근에 등록한 가게 1개만 가져오기 (단순화)
+	var store Store
+	err = db.QueryRow("SELECT id, owner_id, name, description, lat, lng, image_url FROM stores WHERE owner_id = ? ORDER BY id DESC LIMIT 1", userID).Scan(
+		&store.ID, &store.OwnerID, &store.Name, &store.Description, &store.Lat, &store.Lng, &store.ImageUrl)
 
-    if err == sql.ErrNoRows {
-        http.Error(w, "No store found", 404)
-        return
-    }
+	if err == sql.ErrNoRows {
+		http.Error(w, "No store found", 404)
+		return
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(store)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(store)
 }
 
 // ⭐️ [신규] 17. 메뉴 등록 핸들러 (점주용 POST)
 func createMenuHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    claims, err := verifyJWT(r); if err != nil { http.Error(w, "Auth required", 401); return }
-    if claims.Role != "owner" { http.Error(w, "Forbidden", 403); return }
+	claims, err := verifyJWT(r)
+	if err != nil {
+		http.Error(w, "Auth required", 401)
+		return
+	}
+	if claims.Role != "owner" {
+		http.Error(w, "Forbidden", 403)
+		return
+	}
 
-    var req CreateMenuRequest
-    if json.NewDecoder(r.Body).Decode(&req) != nil { http.Error(w, "Bad Request", 400); return }
+	var req CreateMenuRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "Bad Request", 400)
+		return
+	}
 
-    // (본인 가게인지 확인하는 로직은 생략 - 간단하게 구현)
-    _, err = db.Exec("INSERT INTO menus (store_id, name, price, image_url) VALUES (?, ?, ?, ?)",
-        req.StoreID, req.Name, req.Price, "https://picsum.photos/150") // 이미지 더미
-    
-    if err != nil { http.Error(w, "DB Error", 500); return }
-    w.WriteHeader(http.StatusCreated)
+	// (본인 가게인지 확인하는 로직은 생략 - 간단하게 구현)
+	_, err = db.Exec("INSERT INTO menus (store_id, name, price, image_url) VALUES (?, ?, ?, ?)",
+		req.StoreID, req.Name, req.Price, "https://picsum.photos/150") // 이미지 더미
+
+	if err != nil {
+		http.Error(w, "DB Error", 500)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
 }
 
 // ⭐️ [신규] 18. 가게 메뉴 조회 핸들러 (공용 GET)
 func getStoreMenusHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    // URL: /store/{id}/menus
-    // Path 파싱이 복잡하므로, Query Param 방식 사용: /store/menus?store_id=1
-    storeID := r.URL.Query().Get("store_id")
-    if storeID == "" { http.Error(w, "Missing store_id", 400); return }
+	// URL: /store/{id}/menus
+	// Path 파싱이 복잡하므로, Query Param 방식 사용: /store/menus?store_id=1
+	storeID := r.URL.Query().Get("store_id")
+	if storeID == "" {
+		http.Error(w, "Missing store_id", 400)
+		return
+	}
 
-    rows, err := db.Query("SELECT id, store_id, name, price, image_url FROM menus WHERE store_id = ?", storeID)
-    if err != nil { http.Error(w, "DB Error", 500); return }
-    defer rows.Close()
+	rows, err := db.Query("SELECT id, store_id, name, price, image_url FROM menus WHERE store_id = ?", storeID)
+	if err != nil {
+		http.Error(w, "DB Error", 500)
+		return
+	}
+	defer rows.Close()
 
-    var menus []Menu
-    for rows.Next() {
-        var m Menu
-        rows.Scan(&m.ID, &m.StoreID, &m.Name, &m.Price, &m.ImageUrl)
-        menus = append(menus, m)
-    }
-    // 빈 배열 처리
-    if menus == nil { menus = []Menu{} }
+	var menus []Menu
+	for rows.Next() {
+		var m Menu
+		rows.Scan(&m.ID, &m.StoreID, &m.Name, &m.Price, &m.ImageUrl)
+		menus = append(menus, m)
+	}
+	// 빈 배열 처리
+	if menus == nil {
+		menus = []Menu{}
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(menus)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(menus)
 }
 
 // ⭐️ [신규] 19. 점주용 주문 목록 조회 (GET)
 func getOwnerOrdersHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-    claims, err := verifyJWT(r); if err != nil { http.Error(w, "Auth required", 401); return }
-    
-    // 1. 내 가게 ID 찾기
-    var storeID int
-    err = db.QueryRow(`
+	claims, err := verifyJWT(r)
+	if err != nil {
+		http.Error(w, "Auth required", 401)
+		return
+	}
+
+	// 1. 내 가게 ID 찾기
+	var storeID int
+	err = db.QueryRow(`
         SELECT s.id FROM stores s 
         JOIN users u ON s.owner_id = u.id 
         WHERE u.email = ? ORDER BY s.id DESC LIMIT 1`, claims.Email).Scan(&storeID)
-        
-    if err != nil { http.Error(w, "Store not found", 404); return }
 
-    // 2. 해당 가게의 주문 목록 조회 (최신순)
-    rows, err := db.Query(`
+	if err != nil {
+		http.Error(w, "Store not found", 404)
+		return
+	}
+
+	// 2. 해당 가게의 주문 목록 조회 (최신순)
+	rows, err := db.Query(`
         SELECT o.id, o.store_id, o.user_id, u.email, o.amount, o.status, o.created_at
         FROM orders o
         JOIN users u ON o.user_id = u.id
         WHERE o.store_id = ?
         ORDER BY o.created_at DESC
     `, storeID)
-    if err != nil { http.Error(w, "DB Error", 500); return }
-    defer rows.Close()
+	if err != nil {
+		http.Error(w, "DB Error", 500)
+		return
+	}
+	defer rows.Close()
 
-    var orders []Order
-    for rows.Next() {
-        var o Order
-        rows.Scan(&o.ID, &o.StoreID, &o.UserID, &o.UserEmail, &o.Amount, &o.Status, &o.CreatedAt)
-        orders = append(orders, o)
-    }
-    if orders == nil { orders = []Order{} }
+	var orders []Order
+	for rows.Next() {
+		var o Order
+		rows.Scan(&o.ID, &o.StoreID, &o.UserID, &o.UserEmail, &o.Amount, &o.Status, &o.CreatedAt)
+		orders = append(orders, o)
+	}
+	if orders == nil {
+		orders = []Order{}
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(orders)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(orders)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1045,9 +1131,11 @@ func main() {
 	})
 
 	// ⭐️ [수정] 결제 핸들러
-    http.HandleFunc("/payment/success", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method == "POST" { paymentSuccessHandler(w, r, db) }
-    })
+	http.HandleFunc("/payment/success", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			paymentSuccessHandler(w, r, db)
+		}
+	})
 
 	// (기타 라우팅)
 	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) { registerHandler(w, r, db) })
@@ -1058,40 +1146,46 @@ func main() {
 	http.HandleFunc("/unsubscribe", func(w http.ResponseWriter, r *http.Request) { unsubscribeHandler(w, r, db) })
 	http.HandleFunc("/profile/me", func(w http.ResponseWriter, r *http.Request) { profileHandler(w, r, db) })
 	http.HandleFunc("/points/history", func(w http.ResponseWriter, r *http.Request) { pointHistoryHandler(w, r, db) })
-	// ⭐️ [신규] 14. Directions 라우팅
+	// ⭐️ [확인] Directions 라우팅
 	http.HandleFunc("/directions", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "GET only", http.StatusMethodNotAllowed)
+		if r.Method != "GET" {
+			http.Error(w, "GET only", 405)
 			return
 		}
 		directionsHandler(w, r)
 	})
 
 	// ⭐️ [신규] 점주용 라우팅
-    http.HandleFunc("/owner/store", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method == "POST" {
-            createMyStoreHandler(w, r, db)
-        } else if r.Method == "GET" {
-            getMyStoreHandler(w, r, db)
-        } else {
-            http.Error(w, "Method not allowed", 405)
-        }
-    })
+	http.HandleFunc("/owner/store", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			createMyStoreHandler(w, r, db)
+		} else if r.Method == "GET" {
+			getMyStoreHandler(w, r, db)
+		} else {
+			http.Error(w, "Method not allowed", 405)
+		}
+	})
 	// ⭐️ [신규] 메뉴 관련 라우팅
-    http.HandleFunc("/owner/menu", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method == "POST" { createMenuHandler(w, r, db) }
-    })
-    
-    // (고객/점주 공용 조회)
-    http.HandleFunc("/store/menus", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method == "GET" { getStoreMenusHandler(w, r, db) }
-    })
+	http.HandleFunc("/owner/menu", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			createMenuHandler(w, r, db)
+		}
+	})
+
+	// (고객/점주 공용 조회)
+	http.HandleFunc("/store/menus", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			getStoreMenusHandler(w, r, db)
+		}
+	})
 
 	// ⭐️ [신규] 점주 주문 확인 핸들러
-    http.HandleFunc("/owner/orders", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method == "GET" { getOwnerOrdersHandler(w, r, db) }
-    })
-	
+	http.HandleFunc("/owner/orders", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			getOwnerOrdersHandler(w, r, db)
+		}
+	})
+
 	fmt.Println("Go 백엔드 서버(Auth v14 - Owner Role)가 http://localhost:8080 에서 실행 중입니다...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

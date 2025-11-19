@@ -1,3 +1,4 @@
+import java.util.Properties // ⭐️ [필수] 상단에 import 추가
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,6 +9,13 @@ plugins {
     // ⭐️ [신규] Hilt 플러그인 적용
     id("com.google.dagger.hilt.android")
 }
+// ⭐️ [신규] 1. local.properties 파일 읽기 로직
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+val mapsApiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
 
 android {
     namespace = "com.example.babful"
@@ -21,6 +29,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // ⭐️ [신규] 2. 매니페스트에서 쓸 변수(Placeholder) 주입
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {
@@ -116,6 +127,9 @@ dependencies {
     // ⭐️ [신규] Google Location Services
     implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("com.google.maps.android:maps-compose:4.4.1")
+    implementation("com.google.maps.android:maps-compose-utils:4.4.1")
+    // ⭐️ [신규] Google Location Services
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 }
 // ⭐️ [신규] Hilt 플러그인을 kapt에 적용
 kapt {

@@ -4,6 +4,7 @@ import com.example.babful.data.model.PaymentRequest // ⭐️ [신규]
 import com.example.babful.data.model.Transaction
 import com.example.babful.data.model.User
 import com.example.babful.data.network.ApiService
+import com.example.babful.data.network.PointUseRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,5 +26,9 @@ class ProfileRepository @Inject constructor(
     // 3. 로그아웃 (36단계 로직 이동)
     suspend fun logout() {
         prefsRepo.clearJwtToken()
+    }
+    // ⭐️ [신규] 4. '포인트 사용' API 호출 (38단계 API 연결)
+    suspend fun usePoints(amount: Int, reason: String) {
+        apiService.usePoints(PointUseRequest(amount = amount, reason = reason))
     }
 }

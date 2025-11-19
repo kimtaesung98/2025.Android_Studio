@@ -8,13 +8,17 @@ object NavigationRoutes {
     const val SHORTS = "shorts"
     const val PROFILE = "profile" // ⭐️ [신규]
     const val OWNER_HOME = "owner_home" // ⭐️ [신규]
+    const val OWNER_MENU = "owner_menu/{storeId}" // ⭐️ [신규] 메뉴 관리 경로
+
     // ⭐️ [신규] 2. Authentication Routes
     const val LOGIN = "login"
     const val REGISTER = "register"
+
     // 3. Argument Keys
     const val ARG_STORE_ID = "storeId"
 
     // 4. Detail Screen Routes
     const val STORE_MENU = "store_menu/{$ARG_STORE_ID}"
     fun storeMenuRoute(storeId: String) = "store_menu/$storeId"
+    fun ownerMenuRoute(storeId: Int) = "owner_menu/$storeId" // ⭐️ [신규] 메뉴 관리 경로 생성 함수
 }

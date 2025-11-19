@@ -1,5 +1,6 @@
 package com.example.babful.util
 
+import com.google.maps.android.compose.MapType
 import java.util.Locale
 
 enum class MapType {

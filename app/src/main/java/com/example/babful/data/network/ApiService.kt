@@ -19,6 +19,8 @@ import com.example.babful.data.model.OwnerStore
 import com.example.babful.data.model.CreateStoreRequest
 import com.example.babful.data.model.Menu
 import com.example.babful.data.model.Order
+import com.example.babful.data.model.UpdateOrderStatusRequest
+import retrofit2.http.PUT
 
 data class AuthRequest(
     @SerializedName("email") val email: String,
@@ -38,14 +40,6 @@ data class SubscribeRequest(
     @SerializedName("store_id") val storeId: String
 )
 
-// ⭐️ [신규] 포인트 내역
-data class Transaction(
-    @SerializedName("id") val id: Int,
-    @SerializedName("user_id") val userId: Int,
-    @SerializedName("amount") val amount: Int,
-    @SerializedName("type") val type: String,
-    @SerializedName("timestamp") val timestamp: Date
-)
 // ⭐️ [신규] 포인트 사용 요청
 data class PointUseRequest(
     @SerializedName("amount") val amount: Int,
@@ -65,6 +59,7 @@ data class Route(
 data class Polyline(
     val points: String
 )
+
 
 interface ApiService {
     @GET("feed")
@@ -139,4 +134,8 @@ interface ApiService {
     // ⭐️ [신규] 점주용 주문 목록 조회
     @GET("owner/orders")
     suspend fun getOwnerOrders(): List<Order>
+
+    // ⭐️ [신규] 주문 상태 변경
+    @PUT("owner/order/status")
+    suspend fun updateOrderStatus(@Body request: UpdateOrderStatusRequest)
 }

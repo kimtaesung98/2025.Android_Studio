@@ -1,7 +1,7 @@
 package com.example.babful.util
 
 import com.google.android.gms.maps.model.LatLng
-
+//Google의 압축 알고리즘을 해독하는 유틸리티 클래스를 util 패키지에 생성합니다. (표준 알고리즘입니다.)
 object PolylineUtils {
     /**
      * Google Encoded Polyline String을 List<LatLng>으로 변환합니다.

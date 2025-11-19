@@ -13,7 +13,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun OwnerHomeScreen(
     viewModel: OwnerViewModel = hiltViewModel(),
-    onNavigateToCustomerMode: () -> Unit
+    onNavigateToCustomerMode: () -> Unit,
+    onNavigateToMenu: (Int) -> Unit // ⭐️ [신규]
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -36,6 +37,7 @@ fun OwnerHomeScreen(
             Text(text = uiState.myStore!!.description)
             Spacer(modifier = Modifier.height(32.dp))
             Button(onClick = { /* 메뉴 관리 이동 */ }) { Text("메뉴 관리") }
+            Button(onClick = { onNavigateToMenu(uiState.myStore!!.id) }) { Text("메뉴 관리") }
             Button(onClick = { /* 주문 접수 이동 */ }) { Text("주문 접수 (0)") }
         } else {
             // ⭐️ [가게가 없을 때] 등록 폼

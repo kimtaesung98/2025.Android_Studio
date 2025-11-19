@@ -8,3 +8,9 @@ data class Order(
     val status: String,
     @SerializedName("created_at") val createdAt: String
 )
+
+// ⭐️ [신규] 상태 변경 요청 Body
+data class UpdateOrderStatusRequest(
+    @SerializedName("order_id") val orderId: Int,
+    @SerializedName("status") val status: String
+)
