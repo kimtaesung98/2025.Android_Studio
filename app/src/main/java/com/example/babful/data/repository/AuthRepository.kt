@@ -22,8 +22,13 @@ class AuthRepository @Inject constructor(
     }
 
     // 2. 회원가입
-    suspend fun register(email: String, pass: String) {
-        val request = AuthRequest(email, pass)
-        apiService.register(request) // ⭐️ 성공 시 201, 실패 시 예외 발생
+    suspend fun register(email: String, pass: String, role: String): Result<Unit> { // ⭐️ role 추가
+        return try {
+            // AuthRequest 생성 시 role 전달
+            apiService.register(AuthRequest(email, pass, role))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

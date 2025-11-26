@@ -60,6 +60,22 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun loadProfileInfo() {
+        _uiState.update { it.copy(isLoading = true) }
+        viewModelScope.launch {
+            try {
+                val user = repository.getProfileInfo()
+                // ⭐️ 성공 시 (기존 로직)
+                _uiState.update { it.copy(isLoading = false, user = user) }
+            } catch (e: Exception) {
+                // ⭐️ [수정] 에러 발생 시 (특히 404)
+                // 서버에 유저가 없다는 뜻이므로, 강제로 로그아웃 시키고 로그인 화면으로 보냅니다.
+                logout()
+                _uiState.update { it.copy(isLoading = false, error = "세션이 만료되었습니다. 다시 로그인해주세요.") }
+            }
+        }
+    }
+
     // ⭐️ [수정] 3. '로그아웃' 버튼 클릭 시 호출
     fun logout() {
         Log.d("ProfileViewModel", "로그아웃 요청 수신...")

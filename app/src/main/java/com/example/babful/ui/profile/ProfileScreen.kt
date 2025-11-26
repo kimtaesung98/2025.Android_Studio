@@ -1,8 +1,12 @@
 package com.example.babful.ui.profile
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn // ⭐️ [신규]
 import androidx.compose.foundation.lazy.items // ⭐️ [신규]
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,17 +26,19 @@ import java.util.Locale
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
-    onNavigateToLogin: () -> Unit,
-    onNavigateToOwnerMode: () -> Unit // ⭐️ [신규]
+    onNavigateToLogin: (String) -> Unit, // ⭐️ Role을 인자로 받음
+    onNavigateToOwnerMode: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // (로그아웃 네비게이션 - 36단계와 동일)
-    LaunchedEffect(uiState.navigateToLogin) {
-        if (uiState.navigateToLogin) {
-            onNavigateToLogin()
-            viewModel.onNavigationDone()
+    LaunchedEffect(Unit) { viewModel.loadProfileInfo() }
+
+    // 로그아웃 상태일 때 -> 로그인 선택 화면 표시
+    if (uiState.navigateToLogin || uiState.user == null) {
+        if (!uiState.isLoading) {
+            LoginSelectionScreen(onNavigateToLogin = onNavigateToLogin)
         }
+        return
     }
 
     // ⭐️ [수정] 3. 전체 UI 레이아웃
@@ -138,5 +144,66 @@ fun TransactionItem(transaction: Transaction) {
             fontWeight = FontWeight.Bold,
             color = if (transaction.amount < 0) Color.Red else MaterialTheme.colorScheme.primary
         )
+    }
+}
+
+// ⭐️ [신규] 로그인 역할 선택 화면 (UseCase: 사용자 친숙 UX)
+@Composable
+fun LoginSelectionScreen(onNavigateToLogin: (String) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("반갑습니다! 👋", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text("어떤 분이신가요?", fontSize = 16.sp, color = Color.Gray)
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // 고객용 버튼
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .clickable { onNavigateToLogin("customer") }, // ⭐️ customer 전달
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)) // 파란색 계열
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF1565C0), modifier = Modifier.size(40.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text("손님으로 시작하기", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1565C0))
+                    Text("맛있는 음식을 주문할게요", fontSize = 14.sp, color = Color.Gray)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 점주용 버튼
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .clickable { onNavigateToLogin("owner") }, // ⭐️ owner 전달
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)) // 초록색 계열
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Home, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(40.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text("사장님으로 시작하기", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF2E7D32))
+                    Text("내 가게를 관리할게요", fontSize = 14.sp, color = Color.Gray)
+                }
+            }
+        }
     }
 }

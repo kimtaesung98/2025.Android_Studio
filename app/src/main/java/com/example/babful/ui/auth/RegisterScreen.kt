@@ -1,94 +1,99 @@
 package com.example.babful.ui.auth
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import android.widget.Toast
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.LaunchedEffect // ⭐️ [신규]
-import androidx.compose.material3.CircularProgressIndicator // ⭐️ [신규]
 
 @Composable
 fun RegisterScreen(
-    // ⭐️ 1. LoginScreen과 '동일한' AuthViewModel 사용 (Hilt가 관리)
     viewModel: AuthViewModel = hiltViewModel(),
-    // ⭐️ 2. NavHost로부터 '이벤트 람다' 2개 받기
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    // ⭐️ [신규] ViewModel의 'navigateToLogin' 상태가 true가 되면,
-    //          네비게이션(onRegisterSuccess)을 실행하고, ViewModel에 '소비'했음을 알림
-    LaunchedEffect(uiState.navigateToLogin) {
-        if (uiState.navigateToLogin) {
-            onRegisterSuccess() // ⭐️ (NavHost의 람다 호출)
-            viewModel.onNavigationDone() // ⭐️ (이벤트 소비)
+    val context = LocalContext.current
+
+    // 입력 상태 관리
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf("customer") }
+
+    // 회원가입 성공 시 처리
+    LaunchedEffect(uiState.isRegisterSuccess) {
+        if (uiState.isRegisterSuccess) {
+            Toast.makeText(context, "회원가입 성공! 로그인해주세요.", Toast.LENGTH_SHORT).show()
+            onRegisterSuccess()
+            viewModel.resetRegisterState() // 상태 초기화
+        }
+    }
+
+    // 에러 발생 시 처리
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.resetError()
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "회원가입", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        Text(text = "회원가입", style = MaterialTheme.typography.headlineMedium)
+
         Spacer(modifier = Modifier.height(32.dp))
 
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selectedRole == "customer", onClick = { selectedRole = "customer" })
+            Text("손님")
+            Spacer(modifier = Modifier.width(16.dp))
+            RadioButton(selected = selectedRole == "owner", onClick = { selectedRole = "owner" })
+            Text("사장님")
+        }
+
         OutlinedTextField(
-            value = uiState.email,
-            onValueChange = { viewModel.onEmailChange(it) },
+            value = email,
+            onValueChange = { email = it },
             label = { Text("이메일") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
+
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = uiState.pass,
-            onValueChange = { viewModel.onPasswordChange(it) },
+            value = password,
+            onValueChange = { password = it },
             label = { Text("비밀번호") },
             modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
             visualTransformation = PasswordVisualTransformation()
         )
+
         Spacer(modifier = Modifier.height(32.dp))
 
-        // ⭐️ 3. 회원가입 버튼 [수정]
         Button(
-            onClick = {
-                viewModel.register() // ⭐️ VM에 이벤트만 알림
-            },
+            // ⭐️ 뷰모델에 selectedRole 전달
+            onClick = { viewModel.register(email, password, selectedRole) },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !uiState.isLoading // ⭐️ 로딩 중 비활성화
+            enabled = !uiState.isLoading
         ) {
             if (uiState.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
             } else {
-                Text(text = "회원가입")
+                Text("가입하기")
             }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // ⭐️ 4. 로그인 화면 이동 버튼
-        TextButton(onClick = onNavigateToLogin, enabled = !uiState.isLoading) {
-            Text(text = "로그인 화면으로 돌아가기")
         }
     }
 }

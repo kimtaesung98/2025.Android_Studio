@@ -491,24 +491,22 @@ func shortsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 // ⭐️ [수정] 회원가입 핸들러
 func registerHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var req AuthRequest
-	if json.NewDecoder(r.Body).Decode(&req) != nil {
-		http.Error(w, "Bad Request", 400)
-		return
-	}
+	json.NewDecoder(r.Body).Decode(&req)
 
 	hashedPass, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 
-	// Role 기본값 처리
+	// ⭐️ [복구] 앱에서 보내준 Role이 없으면 customer, 있으면 그대로 사용
 	if req.Role == "" {
 		req.Role = "customer"
 	}
+
+	// (기존 무조건 "owner"로 하던 코드는 지우세요)
 
 	_, err := db.Exec("INSERT INTO users (email, hashed_password, role) VALUES (?, ?, ?)", req.Email, string(hashedPass), req.Role)
 	if err != nil {
 		http.Error(w, "Email exists", 409)
 		return
 	}
-
 	w.WriteHeader(http.StatusCreated)
 }
 
