@@ -1,4 +1,5 @@
 import java.util.Properties // ⭐️ [필수] 상단에 import 추가
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)

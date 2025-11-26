@@ -1,25 +1,13 @@
 package com.example.babful.data.network
 
-import com.example.babful.data.model.CreateMenuRequest
-import com.example.babful.data.model.DeliveryItem
-import com.example.babful.data.model.FeedItem
-import com.example.babful.data.model.ShortsItem
+import com.example.babful.data.model.*
 import com.google.gson.annotations.SerializedName
-import com.example.babful.data.model.StoreInfo // ⭐️ [신규]
-import com.example.babful.data.model.User // ⭐️ [신규]
-import com.example.babful.data.model.Transaction // ⭐️ [신규]
-import com.example.babful.data.model.PaymentRequest // ⭐️ [신규]
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.Path // ⭐️ [신규]
 import java.util.Date // ⭐️ [신규]
-import com.example.babful.data.model.OwnerStore
-import com.example.babful.data.model.CreateStoreRequest
-import com.example.babful.data.model.Menu
-import com.example.babful.data.model.Order
-import com.example.babful.data.model.UpdateOrderStatusRequest
 import retrofit2.http.PUT
 
 data class AuthRequest(
@@ -138,4 +126,13 @@ interface ApiService {
     // ⭐️ [신규] 주문 상태 변경
     @PUT("owner/order/status")
     suspend fun updateOrderStatus(@Body request: UpdateOrderStatusRequest)
+    // ApiService.kt 내부
+    @GET("users/me/orders/active")
+    suspend fun getActiveOrder(): ActiveOrder?
+
+    @GET("users/me/orders")
+    suspend fun getMyOrders(): List<Order>
+
+    @GET("users/me/subscriptions")
+    suspend fun getMySubscriptions(): List<MySubscription>
 }

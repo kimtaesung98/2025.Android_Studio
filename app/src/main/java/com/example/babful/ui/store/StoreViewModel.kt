@@ -72,54 +72,6 @@ class StoreViewModel @Inject constructor(
         }
     }
 
-    // ⭐️ [수정] '포인트 사용' (비즈니스 로직 적용)
-    fun usePointsForOrder() {
-        val state = _uiState.value
-        val currentUser = state.user ?: return
-        val remainingPrice = state.totalPrice - state.pointsUsed
-
-        // ⭐️ 사용 가능 포인트는 남은 결제 금액을 초과할 수 없음
-        if (remainingPrice <= 0) {
-            Log.d("StoreViewModel", "이미 전액을 포인트로 사용했거나 장바구니가 비어있습니다.")
-            return
-        }
-
-        // ⭐️ [핵심] 비즈니스 로직: "최대 1,000P", "내 잔액", "남은 결제금액" 중 '가장 작은' 값
-        val pointsToUse = min(min(currentUser.points, 1000), remainingPrice)
-
-
-        if (pointsToUse <= 0) {
-            Log.d("StoreViewModel", "사용할 포인트가 없습니다. (잔액: ${currentUser.points})")
-            return
-        }
-
-        Log.d("StoreViewModel", "[포인트 사용] $pointsToUse P 사용 요청 (잔액: ${currentUser.points})")
-        _uiState.update { it.copy(isLoading = true) } // (임시 로딩)
-
-        viewModelScope.launch {
-            try {
-                // 1. (API) Go 서버에 '포인트 사용' 요청
-                profileRepository.usePoints(pointsToUse, "주문 할인 (Store: $storeId)")
-
-                // 2. (API) '내 정보' (포인트 잔액) 새로고침
-                val updatedUser = profileRepository.getProfileInfo()
-
-                // 3. (UI) UI 상태 갱신
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        user = updatedUser, // ⭐️ 잔액 갱신
-                        pointsUsed = it.pointsUsed + pointsToUse // ⭐️ '이 주문에' 사용한 포인트 누적
-                    )
-                }
-                Log.d("StoreViewModel", "포인트 사용 성공. 새 잔액: ${updatedUser.points}")
-            } catch (e: Exception) {
-                Log.e("StoreViewModel", "포인트 사용 실패", e)
-                _uiState.update { it.copy(isLoading = false) }
-            }
-        }
-    }
-
     // 3. ⭐️ '구독 토글' 로직 (좋아요와 동일)
     fun toggleSubscription() {
         val currentStore = _uiState.value.storeInfo ?: return

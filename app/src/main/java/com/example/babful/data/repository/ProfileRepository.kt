@@ -1,34 +1,63 @@
 package com.example.babful.data.repository
 
-import com.example.babful.data.model.PaymentRequest // ⭐️ [신규]
+import com.example.babful.data.model.ActiveOrder // ⭐️ Import 확인
+import com.example.babful.data.model.Order
+import com.example.babful.data.model.MySubscription
 import com.example.babful.data.model.Transaction
 import com.example.babful.data.model.User
 import com.example.babful.data.network.ApiService
-import com.example.babful.data.network.PointUseRequest
+import com.example.babful.data.store.UserPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ProfileRepository @Inject constructor(
     private val apiService: ApiService,
-    private val prefsRepo: UserPreferencesRepository // ⭐️ '로그아웃'을 위해 DataStore 주입
+    private val userPreferences: UserPreferences
 ) {
-    // 1. 내 정보 (포인트 잔액)
+    // 내 정보 가져오기
     suspend fun getProfileInfo(): User {
         return apiService.getProfileInfo()
     }
 
-    // 2. 포인트 내역
-    suspend fun getPointHistory(): List<Transaction> {
-        return apiService.getPointHistory()
+    // 로그아웃
+    suspend fun logout() {
+        userPreferences.clearAuthToken()
     }
 
-    // 3. 로그아웃 (36단계 로직 이동)
-    suspend fun logout() {
-        prefsRepo.clearJwtToken()
+    // 내 주문 내역
+    suspend fun getMyOrders(): List<Order> {
+        return try {
+            apiService.getMyOrders()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
-    // ⭐️ [신규] 4. '포인트 사용' API 호출 (38단계 API 연결)
-    suspend fun usePoints(amount: Int, reason: String) {
-        apiService.usePoints(PointUseRequest(amount = amount, reason = reason))
+
+    // 내 구독 목록
+    suspend fun getMySubscriptions(): List<MySubscription> {
+        return try {
+            apiService.getMySubscriptions()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // 포인트 내역
+    suspend fun getPointHistory(): List<Transaction> {
+        return try {
+            apiService.getPointHistory()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // ⭐️ [요청하신 부분] 진행 중인 주문 가져오기
+    suspend fun getActiveOrder(): ActiveOrder? {
+        return try {
+            apiService.getActiveOrder()
+        } catch (e: Exception) {
+            null // 에러 발생 시(또는 주문 없을 시) null 반환
+        }
     }
 }

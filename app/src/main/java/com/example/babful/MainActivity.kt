@@ -43,8 +43,8 @@ import androidx.compose.material.icons.filled.Person // ⭐️ [신규]
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ShoppingCart
 import com.example.babful.ui.owner.OwnerHomeScreen
-import com.example.babful.ui.owner.OwnerMenuScreen
 import com.example.babful.ui.profile.ProfileScreen // ⭐️ [신규]
+import com.example.babful.ui.owner.OwnerMenuScreen // ⭐️ [신규]
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
