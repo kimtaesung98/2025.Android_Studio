@@ -1,4 +1,4 @@
-package com.example.babful // ⭐️ [확인] Logcat이 알려준 실제 패키지명
+package com.example.babful
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -18,33 +21,54 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.babful.ui.feed.FeedScreen
-import com.example.babful.ui.theme.BabfulTheme
+import androidx.navigation.navArgument
+import com.example.babful.ui.MainViewModel
+import com.example.babful.ui.SplashScreen
+import com.example.babful.ui.auth.LoginScreen
+import com.example.babful.ui.auth.RegisterScreen
+import com.example.babful.ui.components.BottomNavigationBar
+import com.example.babful.ui.components.FloatingDeliveryBar
 import com.example.babful.ui.delivery.DeliveryScreen
-import com.example.babful.ui.shorts.ShortsScreen
-import com.example.babful.ui.store.StoreMenuScreen // ⭐️ [신규]
-import androidx.navigation.NavType // ⭐️ [신규]
-import androidx.navigation.navArgument // ⭐️ [신규]
-import com.example.babful.ui.NavigationRoutes // ⭐️ [신규]
-import dagger.hilt.android.AndroidEntryPoint
-import com.example.babful.ui.auth.LoginScreen // ⭐️ [신규]
-import com.example.babful.ui.auth.RegisterScreen // ⭐️ [신규]
-import com.example.babful.ui.SplashScreen // ⭐️ [신규]
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person // ⭐️ [신규]
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.ShoppingCart
+import com.example.babful.ui.feed.FeedScreen
 import com.example.babful.ui.owner.OwnerHomeScreen
-import com.example.babful.ui.profile.ProfileScreen // ⭐️ [신규]
-import com.example.babful.ui.owner.OwnerMenuScreen // ⭐️ [신규]
+import com.example.babful.ui.owner.OwnerMenuScreen
+import com.example.babful.ui.owner.OwnerOrderScreen // ⭐️ [필수] 임포트 확인
+import com.example.babful.ui.profile.ProfileScreen
+import com.example.babful.ui.shorts.ShortsScreen
+import com.example.babful.ui.store.StoreMenuScreen
+import com.example.babful.ui.theme.BabfulTheme
+import dagger.hilt.android.AndroidEntryPoint
+import androidx.hilt.navigation.compose.hiltViewModel // ⭐️ FloatingBar용
+import androidx.lifecycle.compose.collectAsStateWithLifecycle // ⭐️ FloatingBar용
+
+// ⭐️ 네비게이션 경로 상수 정의 (이 파일 내에 포함)
+object NavigationRoutes {
+    const val SPLASH = "splash"
+    const val FEED = "feed"
+    const val DELIVERY = "delivery"
+    const val SHORTS = "shorts"
+    const val PROFILE = "profile"
+    const val LOGIN = "login"
+    const val REGISTER = "register"
+    const val ARG_STORE_ID = "storeId"
+    const val STORE_MENU = "store_menu/{$ARG_STORE_ID}"
+
+    const val OWNER_HOME = "owner_home"
+    const val OWNER_MENU = "owner_menu/{storeId}"
+    const val OWNER_ORDERS = "owner_orders" // ⭐️ 추가됨
+
+    fun storeMenuRoute(storeId: String) = "store_menu/$storeId"
+    fun ownerMenuRoute(storeId: Int) = "owner_menu/$storeId"
+}
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -58,33 +82,34 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// (MainScreen, AppNavHost, Screen, PlaceholderScreen 함수는
-//  이전 단계에서 제공한 코드와 동일합니다.)
-
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    mainViewModel: MainViewModel = hiltViewModel()
+) {
     val navController = rememberNavController()
-    val navItems = listOf(Screen.Feed, Screen.Delivery, Screen.Shorts, Screen.Profile) // ⭐️ [수정]
-    // ⭐️ [신규] 현재 경로를 확인하여 BottomBar를 보여줄지 결정
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    // ⭐️ BottomBar에 포함된 3개 탭 경로
+
+    // ⭐️ Floating Bar 상태 관찰
+    val mainUiState by mainViewModel.uiState.collectAsStateWithLifecycle()
+
+    // ⭐️ 바텀바를 보여줄 화면들
     val bottomNavRoutes = listOf(
         NavigationRoutes.FEED,
         NavigationRoutes.DELIVERY,
         NavigationRoutes.SHORTS,
-        NavigationRoutes.PROFILE // ⭐️ [수정]
+        NavigationRoutes.PROFILE
     )
-    val shouldShowBottomBar = currentDestination?.route in bottomNavRoutes
+    val shouldShowBottomBar = currentDestination?.hierarchy?.any { it.route in bottomNavRoutes } == true
 
     Scaffold(
         bottomBar = {
-            if (shouldShowBottomBar) { // ⭐️ 상세 화면에서는 BottomBar 숨기기
+            if (shouldShowBottomBar) {
+                // 기존 Material3 NavigationBar 대신 커스텀 BottomNavigationBar 사용 가능
+                // 여기서는 직접 구현된 코드 사용
                 NavigationBar {
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val currentDestination = navBackStackEntry?.destination
-
-                    navItems.forEach { screen ->
+                    val screens = listOf(Screen.Feed, Screen.Delivery, Screen.Shorts, Screen.Profile)
+                    screens.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = screen.title) },
                             label = { Text(screen.title) },
@@ -104,163 +129,117 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        AppNavHost( // ⭐️ [수정] NavHostController를 AppNavHost에 전달
-            navController = navController,
-            modifier = Modifier.padding(innerPadding)
-        )
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            AppNavHost(navController = navController)
+
+            // ⭐️ [Step 55] Floating Delivery Bar (진행 중인 주문이 있을 때만 표시)
+            if (mainUiState.activeOrder != null && shouldShowBottomBar) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                ) {
+                    FloatingDeliveryBar(
+                        order = mainUiState.activeOrder!!,
+                        onClick = {
+                            // 클릭 시 프로필 화면(또는 주문 상세)으로 이동
+                            navController.navigate(NavigationRoutes.PROFILE) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
-// [수정] AppNavHost : 새 경로(StoreMenu) 추가 및 이벤트 람다 전달
 @Composable
-fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
+fun AppNavHost(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = NavigationRoutes.SPLASH, // ⭐️ [수정] 시작점을 LOGIN -> SPLASH
-        modifier = modifier
+        startDestination = NavigationRoutes.SPLASH
     ) {
-        // --- ⭐️ [신규] Splash Graph ---
+        // 1. 스플래시 & 인증
         composable(NavigationRoutes.SPLASH) {
             SplashScreen(
                 onNavigateToLogin = {
-                    // ⭐️ LOGIN으로 이동하고 스택에서 SPLASH를 제거
-                    navController.navigate(NavigationRoutes.LOGIN) {
-                        popUpTo(NavigationRoutes.SPLASH) { inclusive = true }
-                    }
+                    navController.navigate(NavigationRoutes.LOGIN) { popUpTo(NavigationRoutes.SPLASH) { inclusive = true } }
                 },
                 onNavigateToFeed = {
-                    // ⭐️ FEED로 이동하고 스택에서 SPLASH를 제거
-                    navController.navigate(NavigationRoutes.FEED) {
-                        popUpTo(NavigationRoutes.SPLASH) { inclusive = true }
-                    }
+                    navController.navigate(NavigationRoutes.FEED) { popUpTo(NavigationRoutes.SPLASH) { inclusive = true } }
                 }
             )
         }
-
-        composable(NavigationRoutes.FEED) {
-            FeedScreen()
-        }
-        // ⭐️ [수정] DELIVERY 라우트
-        composable(NavigationRoutes.DELIVERY) {
-            DeliveryScreen(
-                onNavigateToStore = { storeId ->
-                    // ⭐️ '배달' 탭에서 가게 클릭 시 -> '가게 메뉴(구독/결제)' 화면으로 이동
-                    navController.navigate(NavigationRoutes.storeMenuRoute(storeId))
-                }
-            )
-        }
-        composable(NavigationRoutes.SHORTS) {
-            // ⭐️ [수정] ShortsScreen에 이벤트 람다(onNavigateToStore) 전달
-            ShortsScreen(
-                onNavigateToStore = { storeId ->
-                    // ⭐️ 실제 네비게이션 실행
-                    navController.navigate(NavigationRoutes.storeMenuRoute(storeId))
-                }
-            )
-        }
-        // [수정] Profile Graph
-        composable(NavigationRoutes.PROFILE) {
-            ProfileScreen(
-                onNavigateToLogin = { 
-                    navController.navigate(NavigationRoutes.LOGIN) {
-                        popUpTo(NavigationRoutes.FEED) {
-                            inclusive = true
-                        }
-                    }
-                 },
-                onNavigateToOwnerMode = {
-                    // ⭐️ 점주 모드로 이동 (스택 정리 없이 이동하여 뒤로가기로 복귀 가능하게 함)
-                    navController.navigate(NavigationRoutes.OWNER_HOME)
-                }
-            )
-        }
-
-        // Owner Home 수정: '메뉴 관리' 클릭 시 이동
-        composable(NavigationRoutes.OWNER_HOME) {
-            OwnerHomeScreen(
-                onNavigateToCustomerMode = { navController.popBackStack() },
-                // ⭐️ [신규] 메뉴 관리 이동 람다 전달 (OwnerHomeScreen 수정 필요)
-                onNavigateToMenu = { storeId ->
-                    navController.navigate(NavigationRoutes.ownerMenuRoute(storeId))
-                }
-            )
-        }
-        // ⭐️ [신규] Owner Menu Graph
-        composable(
-            route = NavigationRoutes.OWNER_MENU,
-            // (arguments 설정 생략 - 간단히 문자열 파싱)
-        ) { backStackEntry ->
-            val storeIdStr = backStackEntry.arguments?.getString("storeId") ?: "0"
-            OwnerMenuScreen(storeId = storeIdStr.toInt())
-        }
-
-        // --- ⭐️ [신규] Auth Graph ---
         composable(NavigationRoutes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = {
-                    // ⭐️ [핵심] 로그인 성공 시, FEED로 이동하고 스택에서 LOGIN을 제거
-                    navController.navigate(NavigationRoutes.FEED) {
-                        popUpTo(NavigationRoutes.LOGIN) {
-                            inclusive = true // ⭐️ LOGIN 화면 포함해서 스택에서 제거
-                        }
-                        launchSingleTop = true // ⭐️ FEED가 이미 스택에 있으면 재사용
-                    }
+                    navController.navigate(NavigationRoutes.FEED) { popUpTo(0) { inclusive = true } }
                 },
-                onNavigateToRegister = {
-                    navController.navigate(NavigationRoutes.REGISTER)
-                }
+                onNavigateToRegister = { navController.navigate(NavigationRoutes.REGISTER) }
             )
         }
         composable(NavigationRoutes.REGISTER) {
             RegisterScreen(
-                onRegisterSuccess = {
-                    // ⭐️ (임시) 회원가입 성공 시, LOGIN으로 이동
-                    navController.navigate(NavigationRoutes.LOGIN) {
-                        popUpTo(NavigationRoutes.LOGIN) { // 스택에 REGISTER가 쌓이지 않도록
-                            inclusive = true
-                        }
-                    }
-                },
-                onNavigateToLogin = {
-                    navController.popBackStack() // ⭐️ LOGIN 화면으로 '뒤로가기'
-                }
+                onRegisterSuccess = { navController.popBackStack() }, // 회원가입 후 로그인 화면으로 복귀
+                onNavigateToLogin = { navController.popBackStack() }
             )
         }
-        // ⭐️ [신규] 가게 메뉴 상세 화면 경로 정의
+
+        // 2. 메인 탭
+        composable(NavigationRoutes.FEED) { FeedScreen() }
+        composable(NavigationRoutes.DELIVERY) {
+            DeliveryScreen(
+                onNavigateToStore = { storeId -> navController.navigate(NavigationRoutes.storeMenuRoute(storeId)) }
+            )
+        }
+        composable(NavigationRoutes.SHORTS) {
+            ShortsScreen(
+                onNavigateToStore = { storeId -> navController.navigate(NavigationRoutes.storeMenuRoute(storeId)) }
+            )
+        }
+        composable(NavigationRoutes.PROFILE) {
+            ProfileScreen(
+                onNavigateToLogin = {
+                    navController.navigate(NavigationRoutes.LOGIN) { popUpTo(0) { inclusive = true } }
+                },
+                onNavigateToOwnerMode = { navController.navigate(NavigationRoutes.OWNER_HOME) }
+            )
+        }
+
+        // 3. 상세 화면
         composable(
             route = NavigationRoutes.STORE_MENU,
-            arguments = listOf(navArgument(NavigationRoutes.ARG_STORE_ID) {
-                type = NavType.StringType // 인자 타입 정의
-            })
+            arguments = listOf(navArgument(NavigationRoutes.ARG_STORE_ID) { type = NavType.StringType })
         ) { backStackEntry ->
-            // ⭐️ 전달받은 인자(storeId)를 꺼내서 StoreMenuScreen에 전달
             val storeId = backStackEntry.arguments?.getString(NavigationRoutes.ARG_STORE_ID)
             StoreMenuScreen(storeId = storeId)
         }
+
+        // 4. 점주 모드
+        composable(NavigationRoutes.OWNER_HOME) {
+            OwnerHomeScreen(
+                onNavigateToCustomerMode = { navController.popBackStack() },
+                onNavigateToMenu = { storeId -> navController.navigate(NavigationRoutes.ownerMenuRoute(storeId)) },
+                // ✅ 연결 완료
+                onNavigateToOrders = { navController.navigate(NavigationRoutes.OWNER_ORDERS) }
+            )
+        }
+        composable(NavigationRoutes.OWNER_MENU) { backStackEntry ->
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: "0"
+            OwnerMenuScreen(storeId = storeId.toInt())
+        }
+
+        // ⭐️ [필수 추가] 주문 접수 화면 연결
+        composable(NavigationRoutes.OWNER_ORDERS) {
+            OwnerOrderScreen()
+        }
     }
 }
-// [수정] 4번째 탭 아이콘 추가
+
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     data object Feed : Screen(NavigationRoutes.FEED, "피드", Icons.Default.Home)
     data object Delivery : Screen(NavigationRoutes.DELIVERY, "배달", Icons.Default.ShoppingCart)
     data object Shorts : Screen(NavigationRoutes.SHORTS, "쇼츠", Icons.Default.PlayArrow)
-    data object Profile : Screen(NavigationRoutes.PROFILE, "프로필", Icons.Default.Person) // ⭐️ [신규]
-}
-
-@Composable
-fun PlaceholderScreen(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = "$title (개발 예정)")
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun MainScreenPreview() {
-    BabfulTheme { // ⭐️ [수정] Bapful(P) -> Babful(B)
-        MainScreen()
-    }
+    data object Profile : Screen(NavigationRoutes.PROFILE, "프로필", Icons.Default.Person)
 }

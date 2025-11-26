@@ -4,98 +4,94 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.babful.data.model.Order
 
 @Composable
 fun OwnerOrderScreen(
-    viewModel: OwnerViewModel = hiltViewModel()
+    viewModel: OwnerOrderViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    val tabs = listOf("접수대기", "진행중", "완료")
 
     LaunchedEffect(Unit) { viewModel.loadOrders() }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("주문 접수 현황", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = selectedTabIndex) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { Text(title) }
+                )
+            }
+        }
 
-        if (uiState.isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        // 탭에 따른 필터링 로직
+        val filteredOrders = when (selectedTabIndex) {
+            0 -> uiState.orders.filter { it.status == "접수대기" }
+            1 -> uiState.orders.filter { it.status == "조리중" || it.status == "배달중" }
+            else -> uiState.orders.filter { it.status == "배달완료" }
         }
 
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(uiState.orders) { order ->
-                OrderCard(
+            items(filteredOrders) { order ->
+                OwnerOrderCard(
                     order = order,
-                    onUpdateStatus = { newStatus ->
-                        viewModel.updateOrderStatus(order.id, newStatus)
-                    }
+                    onUpdateStatus = { status -> viewModel.updateStatus(order.id, status) }
                 )
             }
         }
     }
 }
 
-// ⭐️ [신규] 주문 카드 컴포저블 분리
 @Composable
-fun OrderCard(
-    order: Order,
-    onUpdateStatus: (String) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+fun OwnerOrderCard(order: Order, onUpdateStatus: (String) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("주문 #${order.id}", style = MaterialTheme.typography.titleMedium)
-                // 상태 뱃지 (색상 다르게)
-                Text(
-                    text = order.status,
-                    color = when(order.status) {
-                        "접수대기" -> Color.Red
-                        "조리중" -> Color(0xFFFFA500) // Orange
-                        "배달중" -> Color.Blue
-                        "배달완료" -> Color.Green
-                        else -> Color.Gray
-                    },
-                    style = MaterialTheme.typography.titleSmall
-                )
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text("주문 #${order.id}", fontWeight = FontWeight.Bold)
+                Text(order.status, color = getStatusColor(order.status), fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("주문자: ${order.userEmail}")
-            Text("결제 금액: ${order.amount}원", style = MaterialTheme.typography.bodyLarge)
-            Text("일시: ${order.createdAt}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text("메뉴: ${order.amount}원 (상세내역 생략)")
+            Text("주문자: ${order.userEmail}", color = Color.Gray, fontSize = 12.sp)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ⭐️ 상태별 액션 버튼
+            // 상태별 버튼
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 when (order.status) {
-                    "접수대기" -> {
-                        Button(onClick = { onUpdateStatus("조리중") }) { Text("주문 수락") }
-                    }
-                    "조리중" -> {
-                        Button(onClick = { onUpdateStatus("배달중") }) { Text("배달 출발") }
-                    }
-                    "배달중" -> {
-                        Button(onClick = { onUpdateStatus("배달완료") }) { Text("배달 완료 처리") }
-                    }
-                    "배달완료" -> {
-                        OutlinedButton(onClick = { }, enabled = false) { Text("완료된 주문") }
-                    }
+                    "접수대기" -> Button(onClick = { onUpdateStatus("조리중") }) { Text("주문 수락") }
+                    "조리중" -> Button(onClick = { onUpdateStatus("배달중") }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA000))) { Text("배달 출발") }
+                    "배달중" -> Button(onClick = { onUpdateStatus("배달완료") }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))) { Text("배달 완료") }
                 }
             }
         }
+    }
+}
+
+fun getStatusColor(status: String): Color {
+    return when(status) {
+        "접수대기" -> Color.Red
+        "조리중" -> Color(0xFFFFA000)
+        "배달중" -> Color.Blue
+        "배달완료" -> Color.Green
+        else -> Color.Black
     }
 }
