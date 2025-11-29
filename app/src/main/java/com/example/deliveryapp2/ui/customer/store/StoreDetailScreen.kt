@@ -1,4 +1,3 @@
-// File: /ui/customer/store/StoreDetailScreen.kt
 package com.example.deliveryapp2.ui.customer.store
 
 import androidx.compose.foundation.layout.*
@@ -8,22 +7,33 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.deliveryapp2.data.model.MenuItem
+import com.example.deliveryapp2.data.network.RetrofitClient
 import com.example.deliveryapp2.data.repository.CartRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StoreDetailScreen(storeId: String?, onGoToCart: () -> Unit) {
-    // Mock Menus for the store (서버 연동 시 API로 대체 가능)
-    val menuList = listOf(
-        MenuItem("m1", "Signature Burger", 8900, "Best menu"),
-        MenuItem("m2", "Cheese Fries", 4500, "Crispy and cheesy"),
-        MenuItem("m3", "Large Coke", 2000, "Refreshing")
-    )
+    // 서버에서 받아올 메뉴 리스트 상태
+    var menuList by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // 화면 진입 시 메뉴 로드
+    LaunchedEffect(storeId) {
+        if (storeId != null) {
+            try {
+                menuList = RetrofitClient.apiService.getStoreMenus(storeId)
+            } catch (e: Exception) {
+                // 에러 처리 (로그 등)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Menu Selection") }) },
@@ -39,13 +49,22 @@ fun StoreDetailScreen(storeId: String?, onGoToCart: () -> Unit) {
             }
         }
     ) { padding ->
-        LazyColumn(modifier = Modifier.padding(padding).padding(16.dp)) {
-            item {
-                Text("Store ID: $storeId", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(16.dp))
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            items(menuList) { menu ->
-                MenuRowItem(menu = menu)
+        } else {
+            LazyColumn(modifier = Modifier.padding(padding).padding(16.dp)) {
+                item {
+                    Text("Store ID: $storeId", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                if (menuList.isEmpty()) {
+                    item { Text("No menus available for this store.") }
+                }
+                items(menuList) { menu ->
+                    MenuRowItem(menu = menu)
+                }
             }
         }
     }
@@ -65,6 +84,7 @@ fun MenuRowItem(menu: MenuItem) {
             Column {
                 Text(menu.name, style = MaterialTheme.typography.titleMedium)
                 Text("${menu.price} won", style = MaterialTheme.typography.bodyMedium)
+                Text(menu.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
             Button(onClick = { CartRepository.addMenu(menu) }) {
                 Icon(Icons.Default.Add, contentDescription = "Add")
