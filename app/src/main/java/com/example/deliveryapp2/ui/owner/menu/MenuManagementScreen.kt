@@ -78,7 +78,7 @@ fun MenuManagementScreen() {
     if (showDialog) {
         AddMenuDialog(
             onDismiss = { showDialog = false },
-            onAdd = { name, price, desc ->
+            onAdd = { name, price, desc, imageUrl -> // imageUrl 파라미터 받음
                 scope.launch {
                     try {
                         val newItem = MenuItem(
@@ -86,7 +86,8 @@ fun MenuManagementScreen() {
                             storeId = myStoreId,
                             name = name,
                             price = price.toIntOrNull() ?: 0,
-                            description = desc
+                            description = desc,
+                            imageUrl = imageUrl // [중요] 여기서 URL 전달
                         )
                         RetrofitClient.apiService.addMenu(newItem)
                         loadMenus() // 목록 갱신
@@ -102,10 +103,18 @@ fun MenuManagementScreen() {
 }
 
 @Composable
-fun AddMenuDialog(onDismiss: () -> Unit, onAdd: (String, String, String) -> Unit) {
+fun AddMenuDialog(onDismiss: () -> Unit, onAdd: (String, String, String, String) -> Unit) { // 파라미터 추가    var name by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
+
+    // 랜덤 음식 이미지 URL 리스트
+    val randomImages = listOf(
+        "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=60", // Burger
+        "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=500&q=60", // Pizza
+        "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=500&q=60", // Salad
+        "https://images.unsplash.com/photo-1574484284008-be6500b468a3?auto=format&fit=crop&w=500&q=60"  // Sandwich
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -117,10 +126,15 @@ fun AddMenuDialog(onDismiss: () -> Unit, onAdd: (String, String, String) -> Unit
                 OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Price") })
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Description") })
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("A random food image will be assigned.", style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
-            Button(onClick = { onAdd(name, price, desc) }) {
+            Button(onClick = {
+                // 랜덤 이미지 선택하여 전달
+                onAdd(name, price, desc, randomImages.random())
+            }) {
                 Text("Add")
             }
         },
