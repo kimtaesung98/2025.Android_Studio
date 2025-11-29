@@ -1,4 +1,3 @@
-// File: MainActivity.kt
 package com.example.deliveryapp2
 
 import android.os.Bundle
@@ -16,8 +15,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     val navController = rememberNavController()
-                    // 실제 앱에서는 Hilt/Koin 등 DI 라이브러리를 사용해 ViewModel 주입을 권장하지만,
-                    // AutoBuild 데모를 위해 NavGraph 내부에서 직접 인스턴스화 하거나 팩토리를 사용합니다.
+                    // BottomBar나 Scaffold 없이 Graph만 호출 (Graph 내부에서 화면별 Scaffold 처리)
                     AppNavGraph(navController = navController)
                 }
             }

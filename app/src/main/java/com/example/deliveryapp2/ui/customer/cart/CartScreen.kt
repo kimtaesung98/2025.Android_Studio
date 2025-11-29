@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CartScreen(onOrderComplete: () -> Unit) {
+fun CartScreen(onCheckoutClick: () -> Unit) {
     val cartItems = CartRepository.items
     val scope = rememberCoroutineScope()
     var isOrdering by remember { mutableStateOf(false) }
@@ -27,31 +27,10 @@ fun CartScreen(onOrderComplete: () -> Unit) {
         bottomBar = {
             if (cartItems.isNotEmpty()) {
                 Button(
-                    onClick = {
-                        scope.launch {
-                            isOrdering = true
-                            try {
-                                // 실제 서버 주문 요청
-                                val request = OrderRequest(
-                                    storeId = "1", // 실제 앱에선 선택한 매장 ID 사용
-                                    items = cartItems.map { "${it.menu.name} x${it.quantity}" },
-                                    totalPrice = CartRepository.getTotalPrice()
-                                )
-                                RetrofitClient.apiService.placeOrder(request)
-                                CartRepository.clearCart() // 장바구니 비우기
-                                onOrderComplete()
-                            } catch (e: Exception) {
-                                // Error handling
-                            } finally {
-                                isOrdering = false
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp),
-                    enabled = !isOrdering
+                    onClick = onCheckoutClick, // 복잡한 API 호출 로직 제거하고 네비게이션만 실행
+                    modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp)
                 ) {
-                    if (isOrdering) CircularProgressIndicator(color = Color.White)
-                    else Text("Order Now (${CartRepository.getTotalPrice()} won)")
+                    Text("Checkout (${CartRepository.getTotalPrice()} won)")
                 }
             }
         }

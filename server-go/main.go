@@ -50,10 +50,10 @@ type StatusUpdateRequest struct {
 // --- 2. Mock Data (In-Memory Database) ---
 
 var mockStores = []Store{
-	{ID: "1", Name: "Burger King", Rating: "4.8", DeliveryTime: "20-30 min", MinOrderPrice: 15000, ImageURL: ""},
-	{ID: "2", Name: "Pizza Hut", Rating: "4.5", DeliveryTime: "40-50 min", MinOrderPrice: 20000, ImageURL: ""},
-	{ID: "3", Name: "Kyochon Chicken", Rating: "4.9", DeliveryTime: "30-40 min", MinOrderPrice: 18000, ImageURL: ""},
-	{ID: "4", Name: "Starbucks", Rating: "4.7", DeliveryTime: "10-20 min", MinOrderPrice: 12000, ImageURL: ""},
+	{ID: "1", Name: "Burger King", Rating: "4.8", DeliveryTime: "20-30 min", MinOrderPrice: 15000, ImageURL: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=60"},
+	{ID: "2", Name: "Pizza Hut", Rating: "4.5", DeliveryTime: "40-50 min", MinOrderPrice: 20000, ImageURL: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=500&q=60"},
+	{ID: "3", Name: "Kyochon Chicken", Rating: "4.9", DeliveryTime: "30-40 min", MinOrderPrice: 18000, ImageURL: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=60"},
+	{ID: "4", Name: "Starbucks", Rating: "4.7", DeliveryTime: "10-20 min", MinOrderPrice: 12000, ImageURL: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=500&q=60"},
 }
 
 var mockOrders = []Order{

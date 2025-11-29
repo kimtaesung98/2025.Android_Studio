@@ -6,5 +6,5 @@ data class Store(
     val rating: Double,
     val deliveryTime: String,
     val minOrderPrice: Int,
-    val imageUrl: String = ""
+    val imageUrl: String = "" // 기본값 설정
 )
