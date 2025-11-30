@@ -1,14 +1,11 @@
 package com.example.deliveryapp2.data.model
 
-enum class OrderStatus {
-    PENDING, COOKING, DELIVERY, COMPLETED, CANCELLED
-}
-
 data class Order(
     val id: String,
     val storeName: String,
-    val items: List<String>,
+    // [수정] items가 null일 경우 빈 리스트로 초기화하도록 설정
+    val items: List<String> = emptyList(),
     val totalPrice: Int,
-    val status: OrderStatus, // Enum defined below
+    val status: OrderStatus,
     val date: String
 )

@@ -11,6 +11,7 @@ import com.example.deliveryapp2.ui.navigation.AppNavGraph
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.example.deliveryapp2.data.network.WebSocketManager.connect()
         setContent {
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {

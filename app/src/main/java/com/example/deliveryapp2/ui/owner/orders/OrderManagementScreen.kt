@@ -4,33 +4,45 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh // 아이콘 추가
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.deliveryapp2.data.model.Order
+import com.example.deliveryapp2.data.model.OrderStatus
+import com.example.deliveryapp2.data.network.RetrofitClient
+import com.example.deliveryapp2.data.network.WebSocketManager
+import com.example.deliveryapp2.data.repository.NetworkDeliveryRepository
 import com.example.deliveryapp2.viewmodel.OwnerOrderViewModel
-import com.example.deliveryapp2.data.model.Order // Import 확인
+import com.example.deliveryapp2.viewmodel.OwnerOrderViewModelFactory
 
 @Composable
-fun OrderManagementScreen() {
-    // ViewModel 주입 (Factory 설정이 되어 있다고 가정)
-    // *주의: MainActivity나 NavGraph에서 Factory를 통해 주입받는 것이 정석입니다.
-    // 여기서는 편의상 viewModel() 호출 (Factory 필요 시 이전 단계 코드 참고)
-    val viewModel: OwnerOrderViewModel = viewModel()
+fun OrderManagementScreen(
+    viewModel: OwnerOrderViewModel = viewModel(
+        factory = OwnerOrderViewModelFactory(
+            NetworkDeliveryRepository(RetrofitClient.apiService)
+        )
+    )
+) {
     val orders by viewModel.orders.collectAsState()
 
-    // LaunchedEffect: 화면 진입 시 자동 로드
+    // 실시간 업데이트 (WebSocket)
     LaunchedEffect(Unit) {
         viewModel.loadOrders()
+        WebSocketManager.eventFlow.collect { eventType ->
+            if (eventType == "NEW_ORDER" || eventType == "STATUS_UPDATE") {
+                viewModel.loadOrders()
+            }
+        }
     }
 
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Pending", "Processing", "Done")
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // [추가] 상단 타이틀 및 새로고침 버튼
+        // 상단 바
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -42,6 +54,7 @@ fun OrderManagementScreen() {
             }
         }
 
+        // 탭 바
         TabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, title ->
                 Tab(
@@ -52,13 +65,17 @@ fun OrderManagementScreen() {
             }
         }
 
-        // 탭 필터링 로직 (서버 데이터 status 문자열과 매칭 필요)
-        // 서버의 status는 "PENDING", "COOKING", "COMPLETED" 등임
+        // 🟢 [핵심 수정] 6단계 상태를 3개 탭으로 분류하는 로직
         val filteredOrders = orders.filter { order ->
             when(selectedTab) {
-                0 -> order.status.name == "PENDING"
-                1 -> order.status.name == "COOKING" || order.status.name == "DELIVERY"
-                else -> order.status.name == "COMPLETED" || order.status.name == "CANCELLED"
+                0 -> order.status == OrderStatus.PENDING // [Tab 1] 대기중
+
+                1 -> order.status == OrderStatus.PREPARING ||
+                        order.status == OrderStatus.READY_FOR_DELIVERY ||
+                        order.status == OrderStatus.ON_DELIVERY // [Tab 2] 진행중 (조리~배달)
+
+                else -> order.status == OrderStatus.DELIVERED ||
+                        order.status == OrderStatus.CANCELLED // [Tab 3] 완료/취소
             }
         }
 
@@ -67,34 +84,100 @@ fun OrderManagementScreen() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (filteredOrders.isEmpty()) {
-                item { Text("No orders in this status.") }
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                        Text("No orders in this tab.", color = MaterialTheme.colorScheme.outline)
+                    }
+                }
             }
             items(filteredOrders) { order ->
-                // 기존 OrderActionCard 사용 (파라미터 타입이 맞는지 확인 필요)
-                // OwnerOrder(가짜 데이터) 대신 실제 Order 데이터 모델을 사용하도록 카드도 수정해야 함.
-                // 편의상 아래에 간단한 카드 인라인 구현:
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Order #${order.id}", style = MaterialTheme.typography.titleMedium)
-                        Text(order.storeName) // 실제 데이터엔 storeName이 없을 수도 있음 (서버 응답 확인)
-                        Text("${order.totalPrice} won", color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(8.dp))
+                OrderCardItem(order = order, viewModel = viewModel)
+            }
+        }
+    }
+}
 
-                        // 버튼 로직
-                        if (order.status.name == "PENDING") {
-                            Button(onClick = {
-                                viewModel.updateStatus(order.id, com.example.deliveryapp2.data.model.OrderStatus.COOKING)
-                            }) {
-                                Text("Accept Order")
-                            }
-                        } else if (order.status.name == "COOKING") {
-                            Button(onClick = {
-                                viewModel.updateStatus(order.id, com.example.deliveryapp2.data.model.OrderStatus.COMPLETED)
-                            }) {
-                                Text("Complete Delivery")
-                            }
-                        }
+@Composable
+fun OrderCardItem(order: Order, viewModel: OwnerOrderViewModel) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (order.status == OrderStatus.DELIVERED)
+                MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // 상단: 주문번호 및 상태 뱃지
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Order #${order.id.takeLast(4)}", style = MaterialTheme.typography.titleMedium)
+                Surface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                    color = when(order.status) {
+                        OrderStatus.PENDING -> androidx.compose.ui.graphics.Color(0xFFFF9800) // 주황
+                        OrderStatus.DELIVERED -> androidx.compose.ui.graphics.Color(0xFF4CAF50) // 초록
+                        OrderStatus.CANCELLED -> androidx.compose.ui.graphics.Color.Gray
+                        else -> MaterialTheme.colorScheme.primary // 파랑 (진행중)
                     }
+                ) {
+                    Text(
+                        text = order.status.toUiString(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        color = androidx.compose.ui.graphics.Color.White,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 메뉴 목록 (Null Safety 적용)
+            val itemsText = if (order.items.isNotEmpty()) order.items.joinToString(", ") else "No Items Info"
+            Text(itemsText, style = MaterialTheme.typography.bodyMedium)
+
+            Text("${order.totalPrice} won", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 🟢 [상태별 버튼 로직] - 다음 단계로 진행하는 버튼들
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (order.status) {
+                    OrderStatus.PENDING -> {
+                        Button(
+                            onClick = { viewModel.updateStatus(order.id, OrderStatus.PREPARING) },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Accept") }
+                        OutlinedButton(
+                            onClick = { viewModel.updateStatus(order.id, OrderStatus.CANCELLED) },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Reject") }
+                    }
+
+                    OrderStatus.PREPARING -> {
+                        Button(
+                            onClick = { viewModel.updateStatus(order.id, OrderStatus.READY_FOR_DELIVERY) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                        ) { Text("Cooking Done (Call Rider)") }
+                    }
+
+                    OrderStatus.READY_FOR_DELIVERY -> {
+                        Button(
+                            onClick = { viewModel.updateStatus(order.id, OrderStatus.ON_DELIVERY) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF03A9F4))
+                        ) { Text("Rider Picked Up") }
+                    }
+
+                    OrderStatus.ON_DELIVERY -> {
+                        Button(
+                            onClick = { viewModel.updateStatus(order.id, OrderStatus.DELIVERED) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF4CAF50))
+                        ) { Text("Complete Delivery") }
+                    }
+
+                    else -> { /* 완료/취소 상태는 버튼 없음 */ }
                 }
             }
         }

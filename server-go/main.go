@@ -2,18 +2,22 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
-// --- 1. Data Models ---
+// --- 1. Database Models (GORM) ---
 
 type Store struct {
-	ID            string `json:"id"`
+	ID            string `json:"id" gorm:"primaryKey"`
 	Name          string `json:"name"`
 	Rating        string `json:"rating"`
 	DeliveryTime  string `json:"deliveryTime"`
@@ -22,144 +26,202 @@ type Store struct {
 }
 
 type MenuItem struct {
-	ID          string `json:"id"`
+	ID          string `json:"id" gorm:"primaryKey"`
 	StoreID     string `json:"storeId"`
 	Name        string `json:"name"`
 	Price       int    `json:"price"`
 	Description string `json:"description"`
+	ImageURL    string `json:"imageUrl"`
 }
 
 type Order struct {
-	ID         string   `json:"id"`
+	ID         string   `json:"id" gorm:"primaryKey"`
 	StoreName  string   `json:"storeName"`
-	Items      []string `json:"items"`
+	ItemsJson  string   `json:"-"`              // DB 저장용 (JSON string)
+	Items      []string `json:"items" gorm:"-"` // API 응답용
 	TotalPrice int      `json:"totalPrice"`
 	Status     string   `json:"status"`
 	Date       string   `json:"date"`
 }
 
-// DTOs
+// Request/Response DTOs
 type OrderRequest struct {
 	StoreID    string   `json:"storeId"`
 	Items      []string `json:"items"`
 	TotalPrice int      `json:"totalPrice"`
 }
 
-type OrderResponse struct {
-	Success bool   `json:"success"`
-	OrderID string `json:"orderId"`
-	Message string `json:"message"`
-}
-
 type StatusUpdateRequest struct {
 	Status string `json:"status"`
 }
 
-// --- 2. Mock Data ---
+var db *gorm.DB
 
-var mockStores = []Store{
-	{ID: "1", Name: "Burger King", Rating: "4.8", DeliveryTime: "20-30 min", MinOrderPrice: 15000, ImageURL: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=60"},
-	{ID: "2", Name: "Pizza Hut", Rating: "4.5", DeliveryTime: "40-50 min", MinOrderPrice: 20000, ImageURL: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=500&q=60"},
+// --- 2. WebSocket Setup ---
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+var clients = make(map[*websocket.Conn]bool) // 접속된 클라이언트들
+var broadcast = make(chan interface{})       // 메시지 방송 채널
+
+func handleConnections(c *gin.Context) {
+	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer ws.Close()
+	clients[ws] = true
+	fmt.Println("✅ New Client Connected via WebSocket")
+
+	for {
+		var msg interface{}
+		err := ws.ReadJSON(&msg) // Keep connection alive
+		if err != nil {
+			delete(clients, ws)
+			break
+		}
+	}
 }
 
-// 초기 메뉴 데이터
-var mockMenus = []MenuItem{
-	{ID: "m1", StoreID: "1", Name: "Whopper Set", Price: 8900, Description: "Flame-grilled beef patty"},
-	{ID: "m2", StoreID: "1", Name: "Cheese Fries", Price: 3500, Description: "Crispy fries with cheese"},
-	{ID: "m3", StoreID: "2", Name: "Cheese Pizza", Price: 18000, Description: "Rich mozzarella cheese"},
+func handleMessages() {
+	for {
+		msg := <-broadcast
+		for client := range clients {
+			err := client.WriteJSON(msg)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
+			}
+		}
+	}
 }
 
-var mockOrders = []Order{}
+// --- 3. Main Function ---
 
 func main() {
+	// DB 초기화 (SQLite)
+	var err error
+	db, err = gorm.Open(sqlite.Open("delivery.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+
+	// 테이블 자동 생성 (Auto Migrate)
+	db.AutoMigrate(&Store{}, &MenuItem{}, &Order{})
+	seedDatabase() // 초기 데이터 주입
+
+	// 소켓 메시지 처리 고루틴 시작
+	go handleMessages()
+
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	// [GET] 매장 목록
+	// --- WebSocket Endpoint ---
+	r.GET("/ws", handleConnections)
+
+	// --- REST APIs ---
+
 	r.GET("/stores", func(c *gin.Context) {
-		c.JSON(http.StatusOK, mockStores)
+		var stores []Store
+		db.Find(&stores)
+		c.JSON(http.StatusOK, stores)
 	})
 
-	// [GET] 특정 매장의 메뉴 목록
 	r.GET("/stores/:storeId/menus", func(c *gin.Context) {
-		storeID := c.Param("storeId")
-		var storeMenus []MenuItem
-		for _, m := range mockMenus {
-			if m.StoreID == storeID {
-				storeMenus = append(storeMenus, m)
-			}
-		}
-		fmt.Printf("[GET] Menus for Store %s -> count: %d\n", storeID, len(storeMenus))
-		c.JSON(http.StatusOK, storeMenus)
+		var menus []MenuItem
+		db.Where("store_id = ?", c.Param("storeId")).Find(&menus)
+		c.JSON(http.StatusOK, menus)
 	})
 
-	// [POST] 메뉴 추가 (점주용)
 	r.POST("/menus", func(c *gin.Context) {
-		var newMenu MenuItem
-		if err := c.BindJSON(&newMenu); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data"})
+		var menu MenuItem
+		if err := c.BindJSON(&menu); err != nil {
 			return
 		}
-		newMenu.ID = strconv.FormatInt(time.Now().UnixNano(), 10) // Unique ID
-		mockMenus = append(mockMenus, newMenu)
-
-		fmt.Printf("[POST] New Menu Added: %s (%d won)\n", newMenu.Name, newMenu.Price)
-		c.JSON(http.StatusOK, gin.H{"success": true, "menu": newMenu})
+		menu.ID = strconv.FormatInt(time.Now().UnixNano(), 10)
+		db.Create(&menu)
+		c.JSON(http.StatusOK, gin.H{"success": true})
 	})
 
-	// [POST] 주문 접수
 	r.POST("/orders", func(c *gin.Context) {
 		var req OrderRequest
 		if err := c.BindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 			return
 		}
 
-		storeName := "Unknown Store"
-		for _, s := range mockStores {
-			if s.ID == req.StoreID {
-				storeName = s.Name
-				break
-			}
-		}
+		var store Store
+		db.First(&store, "id = ?", req.StoreID)
+
+		// 아이템 리스트를 DB에 넣기 위해 문자열로 변환 (간이 구현)
+		itemsStr := fmt.Sprintf("%v", req.Items)
 
 		newOrder := Order{
 			ID:         strconv.FormatInt(time.Now().Unix(), 10),
-			StoreName:  storeName,
+			StoreName:  store.Name,
+			ItemsJson:  itemsStr, // 실제로는 별도 테이블이나 JSON 컬럼 추천
 			Items:      req.Items,
 			TotalPrice: req.TotalPrice,
 			Status:     "PENDING",
 			Date:       time.Now().Format("2006-01-02 15:04"),
 		}
-		mockOrders = append([]Order{newOrder}, mockOrders...) // Prepend
+		db.Create(&newOrder)
 
-		fmt.Printf("[POST] Order Received: %s\n", newOrder.ID)
-		c.JSON(http.StatusOK, OrderResponse{Success: true, OrderID: newOrder.ID, Message: "Order Placed"})
+		// ⭐ [Real-time] 새 주문 알림 방송!
+		broadcast <- gin.H{"type": "NEW_ORDER", "orderId": newOrder.ID}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "orderId": newOrder.ID})
 	})
 
-	// [GET] 점주용 주문 목록
 	r.GET("/owner/orders", func(c *gin.Context) {
-		c.JSON(http.StatusOK, mockOrders)
-	})
+		var orders []Order
+		db.Order("date desc").Find(&orders)
 
-	// [PUT] 주문 상태 변경
+		// [추가] DB에 저장된 문자열([item1, item2])을 파싱해서 Items 필드에 채워넣기
+		// 간단하게 JSON 파싱 대신 문자열 그대로를 리스트 하나에 담아서 보내거나,
+		// 제대로 하려면 json.Unmarshal을 써야 함.
+		// 여기서는 UI 테스트를 위해 임시로 처리:
+		for i := range orders {
+			// ItemsJson이 "[A, B]" 형태의 문자열이라면,
+			// 클라이언트가 List<String>으로 받기 위해선 가공이 필요함.
+			// 편의상 ItemsJson 내용을 그대로 Items 첫 번째 요소로 넣음 (또는 파싱 로직 구현)
+			if orders[i].ItemsJson != "" {
+				orders[i].Items = []string{orders[i].ItemsJson}
+			}
+		}
+
+		c.JSON(http.StatusOK, orders)
+	})
 	r.PUT("/owner/orders/:orderId/status", func(c *gin.Context) {
 		orderID := c.Param("orderId")
 		var req StatusUpdateRequest
-		if err := c.BindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid body"})
-			return
+		c.BindJSON(&req)
+
+		var order Order
+		if result := db.First(&order, "id = ?", orderID); result.Error == nil {
+			order.Status = req.Status
+			db.Save(&order)
+
+			// ⭐ [Real-time] 상태 변경 알림 방송!
+			broadcast <- gin.H{"type": "STATUS_UPDATE", "orderId": orderID, "status": req.Status}
+
+			c.JSON(http.StatusOK, gin.H{"success": true})
+		} else {
+			c.Status(404)
 		}
-		for i, o := range mockOrders {
-			if o.ID == orderID {
-				mockOrders[i].Status = req.Status
-				c.JSON(http.StatusOK, OrderResponse{Success: true, OrderID: orderID, Message: "Updated"})
-				return
-			}
-		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
 	})
 
-	fmt.Println("🚀 Delivery Server running at http://localhost:8080")
+	fmt.Println("🚀 Real-time DB Server running at :8080")
 	r.Run(":8080")
+}
+
+func seedDatabase() {
+	var count int64
+	db.Model(&Store{}).Count(&count)
+	if count == 0 {
+		db.Create(&Store{ID: "1", Name: "Burger King", Rating: "4.8", DeliveryTime: "25 min", MinOrderPrice: 15000, ImageURL: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500"})
+		db.Create(&Store{ID: "2", Name: "Pizza Hut", Rating: "4.5", DeliveryTime: "40 min", MinOrderPrice: 20000, ImageURL: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=500"})
+		// 초기 메뉴
+		db.Create(&MenuItem{ID: "m1", StoreID: "1", Name: "Whopper", Price: 8000, Description: "Tasty", ImageURL: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200"})
+	}
 }
