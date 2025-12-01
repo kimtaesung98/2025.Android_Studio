@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -123,6 +124,42 @@ func handleMessages() {
 	}
 }
 
+func authMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+			c.Abort()
+			return
+		}
+
+		// "Bearer <token>" 형식 파싱
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
+			c.Abort()
+			return
+		}
+
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// 토큰에서 꺼낸 사용자 정보를 컨텍스트에 저장 (API에서 쓸 수 있게)
+		c.Set("userId", claims.UserID)
+		c.Set("role", claims.Role)
+
+		c.Next() // 통과!
+	}
+}
+
 // --- 3. Main Function ---
 
 func main() {
@@ -158,83 +195,6 @@ func main() {
 		var menus []MenuItem
 		db.Where("store_id = ?", c.Param("storeId")).Find(&menus)
 		c.JSON(http.StatusOK, menus)
-	})
-
-	r.POST("/menus", func(c *gin.Context) {
-		var menu MenuItem
-		if err := c.BindJSON(&menu); err != nil {
-			return
-		}
-		menu.ID = strconv.FormatInt(time.Now().UnixNano(), 10)
-		db.Create(&menu)
-		c.JSON(http.StatusOK, gin.H{"success": true})
-	})
-
-	r.POST("/orders", func(c *gin.Context) {
-		var req OrderRequest
-		if err := c.BindJSON(&req); err != nil {
-			return
-		}
-
-		var store Store
-		db.First(&store, "id = ?", req.StoreID)
-
-		// 아이템 리스트를 DB에 넣기 위해 문자열로 변환 (간이 구현)
-		itemsStr := fmt.Sprintf("%v", req.Items)
-
-		newOrder := Order{
-			ID:         strconv.FormatInt(time.Now().Unix(), 10),
-			StoreName:  store.Name,
-			ItemsJson:  itemsStr, // 실제로는 별도 테이블이나 JSON 컬럼 추천
-			Items:      req.Items,
-			TotalPrice: req.TotalPrice,
-			Status:     "PENDING",
-			Date:       time.Now().Format("2006-01-02 15:04"),
-		}
-		db.Create(&newOrder)
-
-		// ⭐ [Real-time] 새 주문 알림 방송!
-		broadcast <- gin.H{"type": "NEW_ORDER", "orderId": newOrder.ID}
-
-		c.JSON(http.StatusOK, gin.H{"success": true, "orderId": newOrder.ID})
-	})
-
-	r.GET("/owner/orders", func(c *gin.Context) {
-		var orders []Order
-		db.Order("date desc").Find(&orders)
-
-		// [추가] DB에 저장된 문자열([item1, item2])을 파싱해서 Items 필드에 채워넣기
-		// 간단하게 JSON 파싱 대신 문자열 그대로를 리스트 하나에 담아서 보내거나,
-		// 제대로 하려면 json.Unmarshal을 써야 함.
-		// 여기서는 UI 테스트를 위해 임시로 처리:
-		for i := range orders {
-			// ItemsJson이 "[A, B]" 형태의 문자열이라면,
-			// 클라이언트가 List<String>으로 받기 위해선 가공이 필요함.
-			// 편의상 ItemsJson 내용을 그대로 Items 첫 번째 요소로 넣음 (또는 파싱 로직 구현)
-			if orders[i].ItemsJson != "" {
-				orders[i].Items = []string{orders[i].ItemsJson}
-			}
-		}
-
-		c.JSON(http.StatusOK, orders)
-	})
-	r.PUT("/owner/orders/:orderId/status", func(c *gin.Context) {
-		orderID := c.Param("orderId")
-		var req StatusUpdateRequest
-		c.BindJSON(&req)
-
-		var order Order
-		if result := db.First(&order, "id = ?", orderID); result.Error == nil {
-			order.Status = req.Status
-			db.Save(&order)
-
-			// ⭐ [Real-time] 상태 변경 알림 방송!
-			broadcast <- gin.H{"type": "STATUS_UPDATE", "orderId": orderID, "status": req.Status}
-
-			c.JSON(http.StatusOK, gin.H{"success": true})
-		} else {
-			c.Status(404)
-		}
 	})
 
 	// 회원가입
@@ -302,6 +262,92 @@ func main() {
 			"name":    user.Name,
 		})
 	})
+
+	// --- Protected APIs (로그인 필수) ---
+	// authorized 그룹을 만들어 미들웨어 적용
+	authorized := r.Group("/")
+	authorized.Use(authMiddleware())
+	{
+		// 메뉴 추가 (점주만 가능하게 하려면 여기서 role 체크 로직 추가 가능)
+		authorized.POST("/menus", func(c *gin.Context) {
+			var menu MenuItem
+			if err := c.BindJSON(&menu); err != nil {
+				return
+			}
+			menu.ID = strconv.FormatInt(time.Now().UnixNano(), 10)
+			db.Create(&menu)
+			c.JSON(http.StatusOK, gin.H{"success": true})
+		})
+
+		authorized.POST("/orders", func(c *gin.Context) {
+			var req OrderRequest
+			if err := c.BindJSON(&req); err != nil {
+				return
+			}
+
+			var store Store
+			db.First(&store, "id = ?", req.StoreID)
+
+			// 아이템 리스트를 DB에 넣기 위해 문자열로 변환 (간이 구현)
+			itemsStr := fmt.Sprintf("%v", req.Items)
+
+			newOrder := Order{
+				ID:         strconv.FormatInt(time.Now().Unix(), 10),
+				StoreName:  store.Name,
+				ItemsJson:  itemsStr, // 실제로는 별도 테이블이나 JSON 컬럼 추천
+				Items:      req.Items,
+				TotalPrice: req.TotalPrice,
+				Status:     "PENDING",
+				Date:       time.Now().Format("2006-01-02 15:04"),
+			}
+			db.Create(&newOrder)
+
+			// ⭐ [Real-time] 새 주문 알림 방송!
+			broadcast <- gin.H{"type": "NEW_ORDER", "orderId": newOrder.ID}
+
+			c.JSON(http.StatusOK, gin.H{"success": true, "orderId": newOrder.ID})
+		})
+
+		// 내 주문 보기 / 점주 주문 보기
+		authorized.GET("/owner/orders", func(c *gin.Context) {
+			var orders []Order
+			db.Order("date desc").Find(&orders)
+
+			// [추가] DB에 저장된 문자열([item1, item2])을 파싱해서 Items 필드에 채워넣기
+			// 간단하게 JSON 파싱 대신 문자열 그대로를 리스트 하나에 담아서 보내거나,
+			// 제대로 하려면 json.Unmarshal을 써야 함.
+			// 여기서는 UI 테스트를 위해 임시로 처리:
+			for i := range orders {
+				// ItemsJson이 "[A, B]" 형태의 문자열이라면,
+				// 클라이언트가 List<String>으로 받기 위해선 가공이 필요함.
+				// 편의상 ItemsJson 내용을 그대로 Items 첫 번째 요소로 넣음 (또는 파싱 로직 구현)
+				if orders[i].ItemsJson != "" {
+					orders[i].Items = []string{orders[i].ItemsJson}
+				}
+			}
+
+			c.JSON(http.StatusOK, orders)
+		})
+
+		authorized.PUT("/owner/orders/:orderId/status", func(c *gin.Context) {
+			orderID := c.Param("orderId")
+			var req StatusUpdateRequest
+			c.BindJSON(&req)
+
+			var order Order
+			if result := db.First(&order, "id = ?", orderID); result.Error == nil {
+				order.Status = req.Status
+				db.Save(&order)
+
+				// ⭐ [Real-time] 상태 변경 알림 방송!
+				broadcast <- gin.H{"type": "STATUS_UPDATE", "orderId": orderID, "status": req.Status}
+
+				c.JSON(http.StatusOK, gin.H{"success": true})
+			} else {
+				c.Status(404)
+			}
+		})
+	}
 
 	fmt.Println("🚀 Real-time DB Server running at :8080")
 	r.Run(":8080")
