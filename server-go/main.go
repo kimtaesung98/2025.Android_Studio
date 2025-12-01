@@ -9,12 +9,38 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5" // 추가
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/bcrypt" // 추가
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// --- 1. Database Models (GORM) ---
+type User struct {
+	ID       string `json:"id" gorm:"primaryKey"`
+	Email    string `json:"email" gorm:"unique"`
+	Password string `json:"password"` // 암호화되어 저장됨
+	Name     string `json:"name"`
+	Role     string `json:"role"` // "CUSTOMER" or "OWNER"
+}
+
+// Login/Register Request DTO
+type AuthRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Name     string `json:"name"` // 회원가입 시 필요
+	Role     string `json:"role"` // 회원가입 시 필요
+}
+
+// JWT Secret Key (실무에선 환경변수로 관리)
+var jwtKey = []byte("my_secret_key")
+
+// Claims 구조체
+type Claims struct {
+	UserID string `json:"userId"`
+	Role   string `json:"role"`
+	jwt.RegisteredClaims
+}
 
 type Store struct {
 	ID            string `json:"id" gorm:"primaryKey"`
@@ -108,7 +134,7 @@ func main() {
 	}
 
 	// 테이블 자동 생성 (Auto Migrate)
-	db.AutoMigrate(&Store{}, &MenuItem{}, &Order{})
+	db.AutoMigrate(&Store{}, &MenuItem{}, &Order{}, &User{})
 	seedDatabase() // 초기 데이터 주입
 
 	// 소켓 메시지 처리 고루틴 시작
@@ -209,6 +235,72 @@ func main() {
 		} else {
 			c.Status(404)
 		}
+	})
+
+	// 회원가입
+	r.POST("/auth/register", func(c *gin.Context) {
+		var req AuthRequest
+		if err := c.BindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid body"})
+			return
+		}
+
+		// 비밀번호 해싱
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+
+		user := User{
+			ID:       strconv.FormatInt(time.Now().UnixNano(), 10),
+			Email:    req.Email,
+			Password: string(hashedPassword),
+			Name:     req.Name,
+			Role:     req.Role,
+		}
+
+		if result := db.Create(&user); result.Error != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "User created"})
+	})
+
+	// 로그인
+	r.POST("/auth/login", func(c *gin.Context) {
+		var req AuthRequest
+		if err := c.BindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid body"})
+			return
+		}
+
+		var user User
+		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
+		}
+
+		// 비밀번호 검증
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Wrong password"})
+			return
+		}
+
+		// 토큰 생성
+		expirationTime := time.Now().Add(24 * time.Hour)
+		claims := &Claims{
+			UserID: user.ID,
+			Role:   user.Role,
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(expirationTime),
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, _ := token.SignedString(jwtKey)
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"token":   tokenString,
+			"role":    user.Role,
+			"name":    user.Name,
+		})
 	})
 
 	fmt.Println("🚀 Real-time DB Server running at :8080")

@@ -39,7 +39,19 @@ fun AppNavGraph(navController: NavHostController) {
 
     // [중요] startDestination은 'role_selection' 이어야 합니다.
     // 'home'이 아닙니다. (홈 화면의 실제 ID는 'customer_home'입니다)
-    NavHost(navController = navController, startDestination = "role_selection") {
+    NavHost(navController = navController, startDestination = "login") {
+        // [추가] 로그인 화면
+        composable("login") {
+            com.example.deliveryapp2.ui.auth.LoginScreen(
+                onLoginSuccess = { role ->
+                    if (role == "OWNER") {
+                        navController.navigate("owner_dashboard") { popUpTo("login") { inclusive = true } }
+                    } else {
+                        navController.navigate("customer_home") { popUpTo("login") { inclusive = true } }
+                    }
+                }
+            )
+        }
 
         // 0. Role Selection (진입점)
         composable("role_selection") {

@@ -29,4 +29,5 @@ object RetrofitClient {
 
     // API 서비스 공개
     val apiService: DeliveryApiService = retrofit.create(DeliveryApiService::class.java)
+    val authService: AuthApiService = retrofit.create(AuthApiService::class.java) // [추가]
 }
