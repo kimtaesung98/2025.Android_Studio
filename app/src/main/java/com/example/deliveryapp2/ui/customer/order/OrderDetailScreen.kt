@@ -36,7 +36,16 @@ fun OrderDetailScreen(orderId: String?) {
                 Text("Order #$orderId", style = MaterialTheme.typography.titleMedium)
                 Text("Status: ${currentStatus.name}", color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Please wait while we prepare your food.")
+                // 지도가 있던 자리에 텍스트 표시
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(Color.LightGray),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Map Feature Disabled", color = Color.DarkGray)
+                }
             }
         }
 

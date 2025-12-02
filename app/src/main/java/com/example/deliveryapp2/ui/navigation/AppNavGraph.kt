@@ -9,6 +9,7 @@ import com.example.deliveryapp2.data.network.RetrofitClient
 import com.example.deliveryapp2.data.repository.CartRepository
 import com.example.deliveryapp2.data.repository.NetworkDeliveryRepository
 import com.example.deliveryapp2.ui.common.RoleSelectionScreen
+import com.example.deliveryapp2.ui.common.SplashScreen
 import com.example.deliveryapp2.ui.customer.cart.CartScreen
 import com.example.deliveryapp2.ui.customer.home.HomeFeedScreen
 import com.example.deliveryapp2.ui.customer.order.OrderDetailScreen
@@ -39,8 +40,28 @@ fun AppNavGraph(navController: NavHostController) {
 
     // [중요] startDestination은 'role_selection' 이어야 합니다.
     // 'home'이 아닙니다. (홈 화면의 실제 ID는 'customer_home'입니다)
-    NavHost(navController = navController, startDestination = "login") {
-        // [추가] 로그인 화면
+    NavHost(navController = navController, startDestination = "splash") {
+        // [추가] 스플래시 화면 정의
+        composable("splash") {
+            SplashScreen(
+                onNavigateToLogin = {
+                    navController.navigate("login") {
+                        popUpTo("splash") { inclusive = true } // 백스택에서 스플래시 제거
+                    }
+                },
+                onNavigateToCustomer = {
+                    navController.navigate("customer_home") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
+                onNavigateToOwner = {
+                    navController.navigate("owner_dashboard") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable("login") {
             com.example.deliveryapp2.ui.auth.LoginScreen(
                 onLoginSuccess = { role ->
