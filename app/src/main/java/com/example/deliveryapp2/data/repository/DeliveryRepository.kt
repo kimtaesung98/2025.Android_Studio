@@ -21,8 +21,8 @@ class MockDeliveryRepository : DeliveryRepository {
     )
 
     private val mockOrders = mutableListOf(
-        Order("101", "Burger King", listOf("Whopper Set"), 8900, OrderStatus.PREPARING, "2023-10-25"),
-        Order("102", "Pizza Hut", listOf("Cheese Pizza", "Coke"), 24000, OrderStatus.READY_FOR_DELIVERY, "2023-10-24")
+        Order("101", "Burger King", listOf("Whopper Set"), 8900, OrderStatus.PREPARING, "2023-10-25","강남점"),
+        Order("102", "Pizza Hut", listOf("Cheese Pizza", "Coke"), 24000, OrderStatus.READY_FOR_DELIVERY, "2023-10-24","선릉점")
     )
 
     override suspend fun getStores(): List<Store> {

@@ -7,5 +7,6 @@ data class Order(
     val items: List<String> = emptyList(),
     val totalPrice: Int,
     val status: OrderStatus,
-    val date: String
+    val date: String,
+    val deliveryAddress: String
 )

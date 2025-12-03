@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -130,6 +131,25 @@ fun OrderCardItem(order: Order, viewModel: OwnerOrderViewModel) {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // 🟢 [추가] 배달 주소 표시 영역
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = androidx.compose.ui.Alignment.Top) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Address",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (order.deliveryAddress.isNullOrEmpty()) "No Address Provided" else order.deliveryAddress,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // 메뉴 목록 (Null Safety 적용)
             val itemsText = if (order.items.isNotEmpty()) order.items.joinToString(", ") else "No Items Info"

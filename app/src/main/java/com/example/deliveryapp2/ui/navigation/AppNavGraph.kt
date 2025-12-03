@@ -115,7 +115,18 @@ fun AppNavGraph(navController: NavHostController) {
             val orderId = backStackEntry.arguments?.getString("orderId")
             OrderDetailScreen(orderId)
         }
-        composable("customer_profile") { ProfileScreen() }
+
+        // [수정/통합] 고객 프로필
+        composable("customer_profile") {
+            com.example.deliveryapp2.ui.customer.profile.ProfileScreen(
+                onLogout = {
+                    // 로그아웃 시 'login' 화면으로 가고, 백스택을 싹 비움
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true } // 앱 초기 상태로 리셋
+                    }
+                }
+            )
+        }
 
 
         // --- Owner Routes ---
@@ -124,7 +135,16 @@ fun AppNavGraph(navController: NavHostController) {
         }
         composable("owner_orders") { OrderManagementScreen() } // ViewModel 내부 주입됨
         composable("owner_menu") { MenuManagementScreen() }
-        composable("owner_profile") { StoreProfileScreen() }
+        // [수정/통합] 점주 프로필 (동일한 화면 재사용)
+        composable("owner_profile") {
+            com.example.deliveryapp2.ui.customer.profile.ProfileScreen(
+                onLogout = {
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable("owner_analytics") { AnalyticsScreen() }
     }
 }
