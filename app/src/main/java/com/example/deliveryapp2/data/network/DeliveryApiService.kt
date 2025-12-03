@@ -10,7 +10,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 
 // DTOs
-data class OrderRequest(val storeId: String, val items: List<String>, val totalPrice: Int)
+data class OrderRequest(val storeId: String, val items: List<String>, val totalPrice: Int, val deliveryAddress: String)
 data class OrderResponse(val success: Boolean, val orderId: String, val message: String)
 data class StatusUpdate(val status: String)
 data class MenuAddResponse(val success: Boolean, val menu: MenuItem) // 추가

@@ -26,6 +26,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) { // String: Role (CUSTOMER/OW
     var password by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("CUSTOMER") } // Default
+    var address by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -43,7 +44,9 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) { // String: Role (CUSTOMER/OW
         if (!isLoginMode) {
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-
+            OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Address (e.g. 101, Gangnam-daero)") },
+                modifier = Modifier.fillMaxWidth()
+            )
             Spacer(modifier = Modifier.height(16.dp))
             // Role Selection
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -57,8 +60,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) { // String: Role (CUSTOMER/OW
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(
-            onClick = {
+        Button(onClick = {
                 scope.launch {
                     try {
                         if (isLoginMode) {
@@ -67,13 +69,15 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) { // String: Role (CUSTOMER/OW
                             if (response.success && response.token != null) {
                                 tokenManager.saveToken(response.token)
                                 tokenManager.saveUserRole(response.role ?: "CUSTOMER")
+                                // [추가] 주소 저장
+                                tokenManager.saveUserAddress(response.address ?: "")
                                 onLoginSuccess(response.role ?: "CUSTOMER")
                             } else {
                                 Toast.makeText(context, "Login Failed", Toast.LENGTH_SHORT).show()
                             }
                         } else {
                             // 회원가입
-                            val response = RetrofitClient.authService.register(RegisterRequest(email, password, name, role))
+                            val response = RetrofitClient.authService.register(RegisterRequest(email, password, name, role, address))
                             if (response.success) {
                                 Toast.makeText(context, "Account Created! Please Login.", Toast.LENGTH_SHORT).show()
                                 isLoginMode = true // 로그인 모드로 전환

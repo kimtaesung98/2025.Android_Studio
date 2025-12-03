@@ -25,4 +25,12 @@ class TokenManager(context: Context) {
     fun clear() {
         prefs.edit().clear().apply()
     }
+
+    fun saveUserAddress(address: String) {
+        prefs.edit().putString("user_address", address).apply()
+    }
+
+    fun getUserAddress(): String {
+        return prefs.getString("user_address", "No Address Info") ?: "No Address Info"
+    }
 }

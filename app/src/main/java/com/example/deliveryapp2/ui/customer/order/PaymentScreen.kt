@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.deliveryapp2.data.network.OrderRequest
 import com.example.deliveryapp2.data.network.RetrofitClient
@@ -25,6 +26,8 @@ fun PaymentScreen(
     // 결제 수단
     val paymentMethods = listOf("Credit Card", "Samsung Pay", "Cash on Delivery")
     var selectedMethod by remember { mutableStateOf(paymentMethods[0]) }
+    val context = LocalContext.current // 추가
+    val tokenManager = remember { com.example.deliveryapp2.data.local.TokenManager(context) } // 추가
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Payment") }) }
@@ -83,11 +86,14 @@ fun PaymentScreen(
                             delay(2000) // 2초간 결제하는 척 대기 (UX)
 
                             try {
-                                // 서버로 주문 전송
+                                // [추가] 저장된 주소 가져오기
+                                val myAddress = tokenManager.getUserAddress()
+
                                 val request = OrderRequest(
-                                    storeId = "1", // 실제 앱에선 동적으로 처리
-                                    items = CartRepository.items.map { "${it.menu.name} x${it.quantity}" },
-                                    totalPrice = totalPrice
+                                    storeId = "1",
+                                    items = com.example.deliveryapp2.data.repository.CartRepository.items.map { "${it.menu.name} x${it.quantity}" },
+                                    totalPrice = totalPrice,
+                                    deliveryAddress = myAddress // [수정] 주소 전달
                                 )
                                 RetrofitClient.apiService.placeOrder(request)
                                 CartRepository.clearCart()

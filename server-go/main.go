@@ -17,20 +17,23 @@ import (
 	"gorm.io/gorm"
 )
 
+// [수정] User 모델에 Address 추가
 type User struct {
 	ID       string `json:"id" gorm:"primaryKey"`
 	Email    string `json:"email" gorm:"unique"`
-	Password string `json:"password"` // 암호화되어 저장됨
+	Password string `json:"password"`
 	Name     string `json:"name"`
-	Role     string `json:"role"` // "CUSTOMER" or "OWNER"
+	Role     string `json:"role"`
+	Address  string `json:"address"` // [추가]
 }
 
-// Login/Register Request DTO
+// [수정] DTO 업데이트
 type AuthRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
-	Name     string `json:"name"` // 회원가입 시 필요
-	Role     string `json:"role"` // 회원가입 시 필요
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	Address  string `json:"address"` // [추가] 회원가입 시 받음
 }
 
 // JWT Secret Key (실무에선 환경변수로 관리)
@@ -61,21 +64,23 @@ type MenuItem struct {
 	ImageURL    string `json:"imageUrl"`
 }
 
+// [수정] Order 모델에 DeliveryAddress 추가
 type Order struct {
-	ID         string   `json:"id" gorm:"primaryKey"`
-	StoreName  string   `json:"storeName"`
-	ItemsJson  string   `json:"-"`              // DB 저장용 (JSON string)
-	Items      []string `json:"items" gorm:"-"` // API 응답용
-	TotalPrice int      `json:"totalPrice"`
-	Status     string   `json:"status"`
-	Date       string   `json:"date"`
+	ID              string   `json:"id" gorm:"primaryKey"`
+	StoreName       string   `json:"storeName"`
+	ItemsJson       string   `json:"-"`
+	Items           []string `json:"items" gorm:"-"`
+	TotalPrice      int      `json:"totalPrice"`
+	Status          string   `json:"status"`
+	Date            string   `json:"date"`
+	DeliveryAddress string   `json:"deliveryAddress"` // [추가]
 }
 
-// Request/Response DTOs
 type OrderRequest struct {
-	StoreID    string   `json:"storeId"`
-	Items      []string `json:"items"`
-	TotalPrice int      `json:"totalPrice"`
+	StoreID         string   `json:"storeId"`
+	Items           []string `json:"items"`
+	TotalPrice      int      `json:"totalPrice"`
+	DeliveryAddress string   `json:"deliveryAddress"` // [추가] 주문 시 받음
 }
 
 type StatusUpdateRequest struct {
@@ -214,6 +219,7 @@ func main() {
 			Password: string(hashedPassword),
 			Name:     req.Name,
 			Role:     req.Role,
+			Address:  req.Address, // [추가] DB에 주소 저장
 		}
 
 		if result := db.Create(&user); result.Error != nil {
@@ -260,6 +266,7 @@ func main() {
 			"token":   tokenString,
 			"role":    user.Role,
 			"name":    user.Name,
+			"address": user.Address, // [추가] 로그인 시 주소 반환
 		})
 	})
 
@@ -292,13 +299,14 @@ func main() {
 			itemsStr := fmt.Sprintf("%v", req.Items)
 
 			newOrder := Order{
-				ID:         strconv.FormatInt(time.Now().Unix(), 10),
-				StoreName:  store.Name,
-				ItemsJson:  itemsStr, // 실제로는 별도 테이블이나 JSON 컬럼 추천
-				Items:      req.Items,
-				TotalPrice: req.TotalPrice,
-				Status:     "PENDING",
-				Date:       time.Now().Format("2006-01-02 15:04"),
+				ID:              strconv.FormatInt(time.Now().Unix(), 10),
+				StoreName:       store.Name,
+				ItemsJson:       itemsStr, // 실제로는 별도 테이블이나 JSON 컬럼 추천
+				Items:           req.Items,
+				TotalPrice:      req.TotalPrice,
+				Status:          "PENDING",
+				Date:            time.Now().Format("2006-01-02 15:04"),
+				DeliveryAddress: req.DeliveryAddress, // [추가] 배달 주소 저장
 			}
 			db.Create(&newOrder)
 
