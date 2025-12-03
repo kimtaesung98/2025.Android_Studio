@@ -1,7 +1,16 @@
+import java.util.Properties // 1. 이 import가 꼭 필요합니다!
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+// 2. [여기!] local.properties 파일을 읽어오는 코드를 작성합니다.
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -16,6 +25,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "SERVER_URL", localProperties.getProperty("SERVER_URL") ?: "\"\"")
+        buildConfigField("String", "SOCKET_URL", localProperties.getProperty("SOCKET_URL") ?: "\"\"")
     }
 
     buildTypes {
@@ -36,6 +47,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true  // 👈 이 줄이 없어서 에러가 난 것입니다. 추가해주세요!
     }
 }
 

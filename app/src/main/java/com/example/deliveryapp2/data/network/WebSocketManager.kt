@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import okhttp3.*
 import org.json.JSONObject
+import com.example.deliveryapp2.BuildConfig
 
 object WebSocketManager {
     private val client = OkHttpClient()
@@ -16,7 +17,9 @@ object WebSocketManager {
 
     fun connect() {
         // 에뮬레이터 주소 (ws://)
-        val request = Request.Builder().url("ws://10.0.2.2:8080/ws").build()
+        val request = Request.Builder()
+            .url(BuildConfig.SOCKET_URL) // local.properties에 정의된 값 사용
+            .build()
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d("WS", "Connected to Server")

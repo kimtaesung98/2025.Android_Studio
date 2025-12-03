@@ -7,11 +7,11 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import com.example.deliveryapp2.BuildConfig
 
 // Singleton이지만 초기화가 필요한 구조로 변경
 object RetrofitClient {
-    private const val BASE_URL = "http://10.0.2.2:8080/"
-
+    private const val BASE_URL = BuildConfig.SERVER_URL
     private var retrofit: Retrofit? = null
 
     // 앱 시작 시(MainActivity) 한 번 호출해줘야 함
