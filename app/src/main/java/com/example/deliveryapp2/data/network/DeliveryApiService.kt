@@ -1,5 +1,6 @@
 package com.example.deliveryapp2.data.network
 
+import com.example.deliveryapp2.data.model.DashboardStats
 import com.example.deliveryapp2.data.model.MenuItem
 import com.example.deliveryapp2.data.model.Order
 import com.example.deliveryapp2.data.model.Store
@@ -38,4 +39,8 @@ interface DeliveryApiService {
 
     @POST("menus") // 추가: 메뉴 등록
     suspend fun addMenu(@Body menu: MenuItem): MenuAddResponse
+
+    // [추가] 대시보드 통계 요청
+    @GET("owner/dashboard")
+    suspend fun getDashboardStats(): DashboardStats
 }

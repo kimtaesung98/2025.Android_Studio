@@ -1,10 +1,12 @@
 package com.example.deliveryapp2.data.repository // 패키지명 확인 (deliveryapp2)
 
 import android.util.Log
+import com.example.deliveryapp2.data.model.DashboardStats
 import com.example.deliveryapp2.data.model.Order
 import com.example.deliveryapp2.data.model.OrderStatus
 import com.example.deliveryapp2.data.model.Store
 import com.example.deliveryapp2.data.network.DeliveryApiService
+import com.example.deliveryapp2.data.network.RetrofitClient.apiService
 import com.example.deliveryapp2.data.network.StatusUpdate // [중요] Import 추가
 
 class NetworkDeliveryRepository(
@@ -49,5 +51,8 @@ class NetworkDeliveryRepository(
             Log.e("NetworkRepo", "Error updating status", e)
             mockRepo.updateOrderStatus(orderId, status)
         }
+    }
+    suspend fun getDashboardStats(): DashboardStats {
+        return apiService.getDashboardStats()
     }
 }
