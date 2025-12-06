@@ -1,6 +1,7 @@
 package com.example.deliveryapp2.ui.owner.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -15,7 +16,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.deliveryapp2.data.network.RetrofitClient
 import com.example.deliveryapp2.data.repository.NetworkDeliveryRepository
@@ -32,39 +32,56 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
     )
 
     val stats by viewModel.stats.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
+    // 화면 진입 시 데이터 로드
     LaunchedEffect(Unit) {
         viewModel.loadStats()
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Store Dashboard", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Overview of today's performance", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        // 상단 헤더 (제목 + 새로고침 버튼)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Store Dashboard", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("Real-time Overview", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            }
+            IconButton(onClick = { viewModel.loadStats() }) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (stats == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
+        if (stats != null) {
             val s = stats!!
 
-            // 메인 매출 카드
+            // 1. 총 매출 카드 (Main)
             Card(
-                modifier = Modifier.fillMaxWidth().height(150.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+                modifier = Modifier.fillMaxWidth().height(140.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Total Sales", color = Color.White.copy(alpha = 0.8f))
+                    Text("Total Sales (Today)", color = Color.White.copy(alpha = 0.8f))
                     Spacer(modifier = Modifier.height(8.dp))
+                    // 콤마 포맷팅 (예: 15,000 won)
+                    val formattedPrice = NumberFormat.getNumberInstance(Locale.US).format(s.totalSales)
                     Text(
-                        text = NumberFormat.getNumberInstance(Locale.KOREA).format(s.totalSales) + " won",
-                        style = MaterialTheme.typography.displayMedium,
+                        text = "$formattedPrice won",
+                        style = MaterialTheme.typography.displaySmall,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
@@ -73,25 +90,33 @@ fun DashboardScreen(onNavigate: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 그리드 통계
+            // 2. 상세 통계 그리드
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item { StatCard("Pending", s.pendingOrders.toString(), Icons.Default.NotificationsActive, Color(0xFFFF9800)) }
-                item { StatCard("Processing", s.processingOrders.toString(), Icons.Default.Restaurant, Color(0xFF2196F3)) }
-                item { StatCard("Total Orders", s.totalOrders.toString(), Icons.Default.Receipt, Color(0xFF9C27B0)) }
-                item { StatCard("Menu Count", "Manage >", Icons.Default.MenuBook, Color.Gray) }
+                // Pending: 대기 중인 주문 (가장 중요)
+                item {
+                    StatCard("Pending Orders", s.pendingOrders.toString(), Icons.Default.NotificationsActive, Color(0xFFFF9800)) {
+                        onNavigate("owner_orders") // 클릭 시 주문 관리 탭으로 이동
+                    }
+                }
+                // Processing: 조리/배달 중
+                item { StatCard("Processing", s.processingOrders.toString(), Icons.Default.Restaurant, Color(0xFF2196F3)) {} }
+                // Total: 전체 주문 수
+                item { StatCard("Total Orders", s.totalOrders.toString(), Icons.Default.Receipt, Color(0xFF9C27B0)) {} }
+                // Menu: 메뉴 관리 바로가기
+                item { StatCard("Menu Management", "Edit >", Icons.Default.MenuBook, Color.Gray) { onNavigate("owner_menu") } }
             }
         }
     }
 }
 
 @Composable
-fun StatCard(title: String, value: String, icon: ImageVector, color: Color) {
+fun StatCard(title: String, value: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.height(120.dp),
+        modifier = Modifier.height(110.dp).clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -100,7 +125,7 @@ fun StatCard(title: String, value: String, icon: ImageVector, color: Color) {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Box(
-                modifier = Modifier.size(40.dp).background(color.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
+                modifier = Modifier.size(36.dp).background(color.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = color)

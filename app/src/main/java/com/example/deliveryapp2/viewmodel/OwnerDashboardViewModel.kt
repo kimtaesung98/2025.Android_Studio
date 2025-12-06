@@ -4,38 +4,45 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.deliveryapp2.data.model.DashboardStats
-import com.example.deliveryapp2.data.repository.DeliveryRepository // Repository 이름 확인 필요
+import com.example.deliveryapp2.data.repository.NetworkDeliveryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class OwnerDashboardViewModel(private val repository: com.example.deliveryapp2.data.repository.NetworkDeliveryRepository) : ViewModel() {
+class OwnerDashboardViewModel(private val repository: NetworkDeliveryRepository) : ViewModel() {
 
+    // 초기값은 null로 두어 로딩 상태를 구분하거나, 0으로 초기화
     private val _stats = MutableStateFlow<DashboardStats?>(null)
     val stats = _stats.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
+    // 화면이 켜질 때 자동으로 데이터 로드
+    init {
+        loadStats()
+    }
+
     fun loadStats() {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
-                // 1. 정상적으로 데이터 요청
+                // 🟢 [Real Data] 서버 API 호출
                 val result = repository.getDashboardStats()
                 _stats.value = result
             } catch (e: Exception) {
                 e.printStackTrace()
-                // 🚨 [수정] 에러 나면 '0'으로 채워진 데이터라도 보여줌 (무한 로딩 방지)
+                // 에러 발생 시 0으로 표시 (앱 죽음 방지)
                 _stats.value = DashboardStats(0, 0, 0, 0)
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 }
 
-// Factory
-class OwnerDashboardViewModelFactory(private val repository: com.example.deliveryapp2.data.repository.NetworkDeliveryRepository) : ViewModelProvider.Factory {
+class OwnerDashboardViewModelFactory(private val repository: NetworkDeliveryRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(OwnerDashboardViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return OwnerDashboardViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
+        return OwnerDashboardViewModel(repository) as T
     }
 }

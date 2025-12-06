@@ -87,6 +87,14 @@ type StatusUpdateRequest struct {
 	Status string `json:"status"`
 }
 
+// [추가] 통계 응답용 구조체
+type DashboardStats struct {
+	TotalSales       int   `json:"totalSales"`       // 총 매출액
+	TotalOrders      int64 `json:"totalOrders"`      // 총 주문 수
+	PendingOrders    int64 `json:"pendingOrders"`    // 대기 중인 주문
+	ProcessingOrders int64 `json:"processingOrders"` // 조리/배달 중인 주문
+}
+
 var db *gorm.DB
 
 // --- 2. WebSocket Setup ---
@@ -354,6 +362,25 @@ func main() {
 			} else {
 				c.Status(404)
 			}
+		})
+
+		// [추가] 점주용 대시보드 통계 API
+		authorized.GET("/owner/dashboard", func(c *gin.Context) {
+			var stats DashboardStats
+
+			// 1. 총 매출 (상태가 DELIVERED인 주문의 가격 합계)
+			db.Model(&Order{}).Where("status = ?", "DELIVERED").Select("COALESCE(SUM(total_price), 0)").Scan(&stats.TotalSales)
+
+			// 2. 전체 주문 수
+			db.Model(&Order{}).Count(&stats.TotalOrders)
+
+			// 3. 대기 중인 주문 수 (PENDING)
+			db.Model(&Order{}).Where("status = ?", "PENDING").Count(&stats.PendingOrders)
+
+			// 4. 처리 중인 주문 수 (수락됨 ~ 배달 중)
+			db.Model(&Order{}).Where("status IN ?", []string{"ACCEPTED", "COOKING", "READY_FOR_PICKUP", "ON_DELIVERY"}).Count(&stats.ProcessingOrders)
+
+			c.JSON(200, stats)
 		})
 	}
 
