@@ -2,6 +2,7 @@ package com.example.deliveryapp2.data.repository // 패키지명 확인 (deliver
 
 import android.util.Log
 import com.example.deliveryapp2.data.model.DashboardStats
+import com.example.deliveryapp2.data.model.MenuItem
 import com.example.deliveryapp2.data.model.Order
 import com.example.deliveryapp2.data.model.OrderStatus
 import com.example.deliveryapp2.data.model.Store
@@ -39,7 +40,7 @@ class NetworkDeliveryRepository(
             mockRepo.getOwnerOrders()
         }
     }
-
+    
     override suspend fun updateOrderStatus(orderId: String, status: OrderStatus) {
         try {
             // [수정된 부분]
@@ -55,4 +56,5 @@ class NetworkDeliveryRepository(
     suspend fun getDashboardStats(): DashboardStats {
         return apiService.getDashboardStats()
     }
+    suspend fun getMenus(storeId: String): List<MenuItem> = apiService.getMenus(storeId)
 }

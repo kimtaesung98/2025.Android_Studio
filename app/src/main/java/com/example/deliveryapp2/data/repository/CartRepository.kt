@@ -16,7 +16,7 @@ object CartRepository {
     private val _items = mutableStateListOf<CartItem>()
     val items: List<CartItem> get() = _items
 
-    fun addMenu(menu: MenuItem) {
+    fun addToCart(menu: MenuItem) {
         val existingItem = _items.find { it.menu.id == menu.id }
         if (existingItem != null) {
             existingItem.quantity++

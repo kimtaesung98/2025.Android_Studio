@@ -22,7 +22,7 @@ import coil.compose.AsyncImage // 추가
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StoreDetailScreen(storeId: String?, onGoToCart: () -> Unit) {
+fun StoreDetailScreen(storeId: String?, onNavigateToCart: () -> Unit) {
     // 서버에서 받아올 메뉴 리스트 상태
     var menuList by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -44,7 +44,7 @@ fun StoreDetailScreen(storeId: String?, onGoToCart: () -> Unit) {
         topBar = { TopAppBar(title = { Text("Menu Selection") }) },
         floatingActionButton = {
             if (CartRepository.items.isNotEmpty()) {
-                FloatingActionButton(onClick = onGoToCart) {
+                FloatingActionButton(onClick = onNavigateToCart) {
                     Row(modifier = Modifier.padding(16.dp)) {
                         Icon(Icons.Default.ShoppingCart, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -125,7 +125,7 @@ fun MenuRowItem(menu: MenuItem) {
             }
 
             // 추가 버튼 (오른쪽)
-            IconButton(onClick = { CartRepository.addMenu(menu) }) {
+            IconButton(onClick = { CartRepository.addToCart(menu) }) {
                 Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.primary)
             }
         }

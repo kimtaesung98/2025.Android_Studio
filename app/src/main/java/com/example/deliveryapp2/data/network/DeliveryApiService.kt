@@ -12,7 +12,7 @@ import retrofit2.http.Path
 
 // DTOs
 data class OrderRequest(val storeId: String, val items: List<String>, val totalPrice: Int, val deliveryAddress: String)
-data class OrderResponse(val success: Boolean, val orderId: String, val message: String)
+data class OrderResponse(val success: Boolean, val orderId: String, val message: String,val error: Error)
 data class StatusUpdate(val status: String)
 data class MenuAddResponse(val success: Boolean, val menu: MenuItem) // 추가
 
@@ -43,4 +43,6 @@ interface DeliveryApiService {
     // [추가] 대시보드 통계 요청
     @GET("owner/dashboard")
     suspend fun getDashboardStats(): DashboardStats
+    @GET("menus/{storeId}")
+    suspend fun getMenus(@Path("storeId") storeId: String): List<MenuItem>
 }
