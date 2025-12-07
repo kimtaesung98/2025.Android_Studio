@@ -21,8 +21,11 @@ class TokenManager(context: Context) {
     fun getUserRole(): String? {
         return prefs.getString("user_role", null)
     }
+    fun getUserName(): String? {
+        return prefs.getString("user_name", null)
+    }
 
-    fun clear() {
+    fun clearToken() {
         prefs.edit().clear().apply()
     }
 

@@ -144,8 +144,16 @@ fun AppNavGraph(navController: NavHostController) {
             androidx.compose.material3.Text("Menu Management")
         }
 
+        // 고객 프로필
+        composable("customer_profile") {
+            com.example.deliveryapp2.ui.customer.profile.ProfileScreen(
+                onLogout = {
+                    navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                }
+            )
+        }
+        // 점주 프로필
         composable("owner_profile") {
-            // 점주 프로필
             com.example.deliveryapp2.ui.customer.profile.ProfileScreen(
                 onLogout = {
                     navController.navigate("login") { popUpTo(0) { inclusive = true } }
