@@ -107,10 +107,15 @@ fun AppNavGraph(navController: NavHostController) {
             )
         }
 
-        // 7. 주문 내역 목록 (하단 탭)
+        // 🟢 [수정] 주문 내역 목록 (하단 탭)
         composable("customer_orders") {
-            // 아직 OrderListScreen을 안 만들었다면 임시 텍스트나 OrderDetailScreen 연결
-            com.example.deliveryapp2.ui.customer.order.OrderDetailScreen(orderId = "temp")
+            com.example.deliveryapp2.ui.customer.order.OrderListScreen(
+                onOrderClick = { orderId ->
+                    // [추후 구현] 상세 화면으로 이동 (Tracking)
+                    // navController.navigate("order_track/$orderId")
+                    // 지금은 임시로 토스트 메시지나 로그만 남겨도 됨
+                }
+            )
         }
 
         // 8. 고객 프로필 (하단 탭)
