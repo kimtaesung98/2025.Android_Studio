@@ -64,16 +64,16 @@ type MenuItem struct {
 	ImageURL    string `json:"imageUrl"`
 }
 
-// [수정] Order 모델에 DeliveryAddress 추가
 type Order struct {
 	ID              string   `json:"id" gorm:"primaryKey"`
+	UserID          string   `json:"userId"` // 🟢 [추가] 누가 주문했는지 식별
 	StoreName       string   `json:"storeName"`
 	ItemsJson       string   `json:"-"`
 	Items           []string `json:"items" gorm:"-"`
 	TotalPrice      int      `json:"totalPrice"`
 	Status          string   `json:"status"`
 	Date            string   `json:"date"`
-	DeliveryAddress string   `json:"deliveryAddress"` // [추가]
+	DeliveryAddress string   `json:"deliveryAddress"`
 }
 
 type OrderRequest struct {
@@ -283,15 +283,26 @@ func main() {
 	authorized := r.Group("/")
 	authorized.Use(authMiddleware())
 	{
-		// 메뉴 추가 (점주만 가능하게 하려면 여기서 role 체크 로직 추가 가능)
+		// 🟢 [추가] 메뉴 추가 API
 		authorized.POST("/menus", func(c *gin.Context) {
-			var menu MenuItem
-			if err := c.BindJSON(&menu); err != nil {
+			var req MenuItem
+			// 클라이언트가 보낸 JSON 데이터를 MenuItem 구조체에 바인딩
+			if err := c.BindJSON(&req); err != nil {
+				c.JSON(400, gin.H{"error": "Invalid data"})
 				return
 			}
-			menu.ID = strconv.FormatInt(time.Now().UnixNano(), 10)
-			db.Create(&menu)
-			c.JSON(http.StatusOK, gin.H{"success": true})
+
+			// ID 생성 및 저장
+			req.ID = strconv.FormatInt(time.Now().UnixNano(), 10)
+
+			// 필수 값 체크 (예: 가격이나 이름이 없으면 에러)
+			if req.Name == "" || req.Price <= 0 || req.StoreID == "" {
+				c.JSON(400, gin.H{"error": "Missing fields"})
+				return
+			}
+
+			db.Create(&req)
+			c.JSON(200, gin.H{"success": true, "menuId": req.ID})
 		})
 
 		authorized.POST("/orders", func(c *gin.Context) {
@@ -300,25 +311,27 @@ func main() {
 				return
 			}
 
+			// 🟢 [추가] 미들웨어(authMiddleware)가 저장해둔 사용자 ID 가져오기
+			userID := c.MustGet("userId").(string)
+
 			var store Store
 			db.First(&store, "id = ?", req.StoreID)
 
-			// 아이템 리스트를 DB에 넣기 위해 문자열로 변환 (간이 구현)
 			itemsStr := fmt.Sprintf("%v", req.Items)
 
 			newOrder := Order{
 				ID:              strconv.FormatInt(time.Now().Unix(), 10),
+				UserID:          userID, // 🟢 [추가] DB에 저장
 				StoreName:       store.Name,
-				ItemsJson:       itemsStr, // 실제로는 별도 테이블이나 JSON 컬럼 추천
+				ItemsJson:       itemsStr,
 				Items:           req.Items,
 				TotalPrice:      req.TotalPrice,
 				Status:          "PENDING",
 				Date:            time.Now().Format("2006-01-02 15:04"),
-				DeliveryAddress: req.DeliveryAddress, // [추가] 배달 주소 저장
+				DeliveryAddress: req.DeliveryAddress,
 			}
 			db.Create(&newOrder)
 
-			// ⭐ [Real-time] 새 주문 알림 방송!
 			broadcast <- gin.H{"type": "NEW_ORDER", "orderId": newOrder.ID}
 
 			c.JSON(http.StatusOK, gin.H{"success": true, "orderId": newOrder.ID})
@@ -382,6 +395,25 @@ func main() {
 
 			c.JSON(200, stats)
 		})
+
+		// 🟢 [추가] 고객용 '내 주문 내역' 조회
+		authorized.GET("/orders", func(c *gin.Context) {
+			userID := c.MustGet("userId").(string) // 현재 로그인한 사람 ID
+
+			var orders []Order
+			// 내 ID로 된 주문만 최신순으로 가져오기
+			db.Where("user_id = ?", userID).Order("date desc").Find(&orders)
+
+			// ItemsJson -> Items 변환
+			for i := range orders {
+				if orders[i].ItemsJson != "" {
+					orders[i].Items = []string{orders[i].ItemsJson}
+				}
+			}
+
+			c.JSON(http.StatusOK, orders)
+		})
+
 	}
 
 	fmt.Println("🚀 Real-time DB Server running at :8080")

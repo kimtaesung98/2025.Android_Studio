@@ -152,5 +152,8 @@ fun AppNavGraph(navController: NavHostController) {
                 }
             )
         }
+        composable("owner_menu") {
+            com.example.deliveryapp2.ui.owner.menu.MenuManagementScreen()
+        }
     }
 }

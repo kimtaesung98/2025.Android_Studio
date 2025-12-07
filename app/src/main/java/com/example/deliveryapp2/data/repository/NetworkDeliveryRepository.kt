@@ -57,4 +57,15 @@ class NetworkDeliveryRepository(
         return apiService.getDashboardStats()
     }
     suspend fun getMenus(storeId: String): List<MenuItem> = apiService.getMenus(storeId)
+
+    // 🟢 [추가] 이 함수가 없어서 에러가 났던 것입니다!
+    suspend fun addMenu(menu: MenuItem): Boolean {
+        return try {
+            val response = api.addMenu(menu)
+            response.success // 성공 여부(true/false) 반환
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }
