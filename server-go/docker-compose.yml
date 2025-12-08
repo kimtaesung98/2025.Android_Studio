@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    # 현재 폴더(.)에 있는 Dockerfile을 보고 이미지를 빌드해라
+    build: .
+    
+    # 컨테이너 이름 지정 (관리하기 편함)
+    container_name: delivery-server
+    
+    # 포트 연결: [내 컴퓨터 포트]:[도커 내부 포트]
+    ports:
+      - "8080:8080"
+    
+    # 🟢 [중요] 볼륨 연결 (데이터 영구 저장)
+    # 내 컴퓨터의 delivery.db 파일을 도커 안의 /app/delivery.db 와 연결(Sync)한다.
+    # 이렇게 해야 도커를 껐다 켜도 회원가입 정보나 주문 내역이 사라지지 않음!
+    volumes:
+      - ./delivery.db:/app/delivery.db
+    
+    # 서버가 죽으면 자동으로 다시 켜라
+    restart: always

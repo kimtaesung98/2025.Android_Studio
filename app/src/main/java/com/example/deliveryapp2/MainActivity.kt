@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.deliveryapp2.data.network.RetrofitClient
 import com.example.deliveryapp2.ui.components.AppBottomBar
 import com.example.deliveryapp2.ui.navigation.AppNavGraph
 import com.example.deliveryapp2.ui.navigation.customerTabs
@@ -20,9 +21,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 필수 초기화
-        com.example.deliveryapp2.data.network.RetrofitClient.init(applicationContext)
         com.example.deliveryapp2.data.network.WebSocketManager.connect()
+        RetrofitClient.init(applicationContext)
 
         setContent {
             MaterialTheme {

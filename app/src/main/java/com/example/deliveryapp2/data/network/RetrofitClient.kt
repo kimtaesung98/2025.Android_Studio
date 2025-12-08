@@ -11,7 +11,11 @@ import com.example.deliveryapp2.BuildConfig
 
 // Singleton이지만 초기화가 필요한 구조로 변경
 object RetrofitClient {
-    private const val BASE_URL = BuildConfig.SERVER_URL
+    private val BASE_URL = if (BuildConfig.SERVER_URL.endsWith("/")) {
+        BuildConfig.SERVER_URL
+    } else {
+        "${BuildConfig.SERVER_URL}/"
+    }
     private var retrofit: Retrofit? = null
 
     // 앱 시작 시(MainActivity) 한 번 호출해줘야 함

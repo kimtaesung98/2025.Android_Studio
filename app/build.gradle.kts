@@ -6,12 +6,15 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
-// 2. [여기!] local.properties 파일을 읽어오는 코드를 작성합니다.
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(FileInputStream(localPropertiesFile))
 }
+val serverUrl = localProperties.getProperty("SERVER_URL") ?: ""
+// 🟢 [추가] 소켓 URL도 변수로 받아옵니다.
+val socketUrl = localProperties.getProperty("SOCKET_URL") ?: ""
 
 android {
     namespace = "com.example.deliveryapp2"
@@ -23,8 +26,15 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        // 🟢 [수정] 중복 제거하고 깔끔하게 정리
+        // SERVER_URL: Retrofit용 (https://...)
+        buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
+
+        // SOCKET_URL: WebSocket용 (wss://...)
+        buildConfigField("String", "SOCKET_URL", "\"$socketUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
         buildConfigField("String", "SERVER_URL", localProperties.getProperty("SERVER_URL") ?: "\"\"")
         buildConfigField("String", "SOCKET_URL", localProperties.getProperty("SOCKET_URL") ?: "\"\"")
     }
